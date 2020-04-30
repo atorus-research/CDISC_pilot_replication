@@ -6,12 +6,19 @@ In 2007, the [original pilot project submission package](https://www.cdisc.org/s
 Atorus Research has now regenerated the table outputs within the CDISC Pilot Project using the PHUSE Test Data Factory project’s data and the R Programming language. Our motivation behind this project was to:
 -	Demonstrate that we were able to obtain matching outputs using R
 -	Provide open source code to the public to demonstrate how we were able to do this
--	Demonstrate our first publicly released R package, `pharmaRTF`, in action
+-	Demonstrate our first publicly released R package, `pharmaRTF`, in action.
 You can find our package pharmaRTF right [here](github_link.com)
+
+## Setup Instructions
+To obtain the data for this repository, you can download the data from the PHUSE Github Repository, using [this link](https://github.com/phuse-org/phuse-scripts/blob/master/data/adam/TDF_ADaM_v1.0.zip) for ADaM data and [this link](https://github.com/phuse-org/phuse-scripts/blob/master/data/sdtm/TDF_SDTM_v1.0%20.zip)
+ for the SDTM.
+
+This repository was programmed using R 3.6. For further system information, see our [session information](SessionInfo.txt).
 
 ## Notes on Data
 Every effort was made to use best programming practices to recreate the values on the CDISC Pilot displays, however some values on our outputs do not align with the values on the CDISC Pilot displays due to the following reasons:
-General:
+
+### General:
 -	The ADaMs we used to regenerate the CDISC Pilot displays were the PHUSE CDISC Pilot replication ADaMs following ADaM V1.1.  Since the CDISC Pilot displays were not regenerated using the PHUSE CDISC Pilot replication data there are likely discrepancies between the original CDISC Pilot analysis data and the PHUSE CDISC Pilot replication ADaMs.
 -	SAS and R round differently.  While SAS rounds up if the value is 5 or greater, R rounds to the nearest even number.
 -	In some circumstances, R packages will not produce a p-value if there the counts within the data are not high enough to make it statistically meaningful. An example of this is BILIRUBIN on Table 14-6.05. The High at Baseline stratum only has a single count, and the mantelhein.test function is R requires that each stratum has more than 1 observation. 
