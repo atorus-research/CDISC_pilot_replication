@@ -6,7 +6,7 @@ In 2007, the [original pilot project submission package](https://www.cdisc.org/s
 Atorus Research has now regenerated the table outputs within the CDISC Pilot Project using the PHUSE Test Data Factory project’s data and the R Programming language. Our motivation behind this project was to:
 -	Demonstrate that we were able to obtain matching outputs using R
 -	Provide open source code to the public to demonstrate how we were able to do this
--	Demonstrate our first publicly released R package, pharmaRTF, in action
+-	Demonstrate our first publicly released R package, `pharmaRTF`, in action
 You can find our package pharmaRTF right [here](github_link.com)
 
 ## Notes on Data
