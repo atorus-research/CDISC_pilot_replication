@@ -446,7 +446,7 @@ efficacy_models <- function(data, var=NULL, wk=NULL, model_type='ancova') {
     ancova <- car::Anova(model1, type=3)
 
     # Pull it out into a table
-    sect1 <- tibble(rowlbl1=c('p-value(Dose Response) [1] [2]'),
+    sect1 <- tibble(rowlbl1=c('p-value(Dose Response) [1][2]'),
                             `81` = c(num_fmt(ancova[2, 'Pr(>F)'], int_len=4, digits=3, size=12))
     ) %>%
       pad_row()
@@ -545,40 +545,4 @@ efficacy_models <- function(data, var=NULL, wk=NULL, model_type='ancova') {
   # Return the statistics together
   return(bind_rows(sect1, pw_final))
 
-}
-
-
-
-
-
-
-
-
-
-
-
-
-make_groups <- function(t, groupvar) {
-  # KEEPING THIS JUST IN CASE - BUT REPLACED WITH AND OPTION ON gt()
-  # Wrapper to apply multiple calls of tab_row_group for a specified
-  # group variable. Groups are automatically determined based on
-  # distinct values
-
-  # Quosure for the string variable provided
-  grpvar <- sym(groupvar)
-
-  # Loop the unique values of the group variable
-  for (g in unique(t$`_data`[[groupvar]])) {
-    # Create the tab row group
-    t <- tab_row_group(
-      t, # gt object
-      group = g, # Group label to be printed
-      rows = !!grpvar == g # Subset rows by evaluating against group variable
-    )
-  }
-
-  # Hide the group variable
-  t <- cols_hide(t, columns = groupvar)
-
-  return(t)
 }

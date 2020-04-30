@@ -6,8 +6,8 @@ library(tidyverse)
 library(haven)
 library(pharmaRTF)
 
-source('./scripts/table_examples/config.R')
-source('./scripts/table_examples/funcs.R')
+source('./programs/config.R')
+source('./programs/funcs.R')
 
 pad_row <- function(df, r) {
   #df - dataframe to insert pad
@@ -148,8 +148,8 @@ names(comb2) <- c(
   "p-\\line value\\line[2]"
 )
 
-dm <- read_xpt(glue("{sdtm_lib}/dm.xpt"))
-headers <- dm %>%
+adsl <- read_xpt(glue("{adam_lib}/adsl.xpt"))
+headers <- adsl %>%
   filter(ARM != "Screen Failure") %>%
   group_by(ARM) %>%
   summarise(N = n()) %>%
@@ -186,7 +186,7 @@ ht2 <- ht %>%
 
 # Write into doc object and pull titles/footnotes from excel file
 doc <- rtf_doc(ht2, header_rows = 3) %>% titles_and_footnotes_from_df(
-  from.file='./scripts/table_examples/titles.xlsx',
+  from.file='./data/titles.xlsx',
   reader=example_custom_reader,
   table_number='14-6.06') %>%
   set_font_size(10) %>%
@@ -195,5 +195,5 @@ doc <- rtf_doc(ht2, header_rows = 3) %>% titles_and_footnotes_from_df(
   set_header_height(0.75) %>%
   set_footer_height(1)
 
-write_rtf(doc, file='./scripts/table_examples/outputs/14-6.06.rtf')
+write_rtf(doc, file='./outputs/14-6.06.rtf')
 

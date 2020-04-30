@@ -9,8 +9,8 @@ library(haven)
 library(pharmaRTF)
 library(tibble)
 
-source('./scripts/table_examples/config.R')
-source('./scripts/table_examples/funcs.R')
+source('./programs/config.R')
+source('./programs/funcs.R')
 
 
 pad_row <- function(df, r) {
@@ -27,7 +27,7 @@ pad_row <- function(df, r) {
   df
 }
 
-dm <- read_xpt(glue("{sdtm_lib}/dm.xpt"))
+adsl <- read_xpt(glue("{adam_lib}/adsl.xpt"))
 advs <- read_xpt(glue("{adam_lib}/advs.xpt")) %>%
   filter(SAFFL == "Y" & !is.na(BASE))
 
@@ -63,7 +63,7 @@ advs3 <- advs2 %>%
 
 advs4 <- add_column(advs3, "N" = apply(advs3,
                                        1,
-                                       function(x) {aSum <- sum(dm[,"ARM"] == x["TRTP"], na.rm = TRUE)
+                                       function(x) {aSum <- sum(adsl[,"ARM"] == x["TRTP"], na.rm = TRUE)
                                        ifelse(aSum == 0, NA, aSum)}),
                     .after = 3)
 
@@ -115,7 +115,7 @@ ht <- advs4 %>%
   huxtable::set_col_width(1:ncol(advs4), c(0.2, 0.15, 0.19, 0.03, 0.1, 0.03, 0.06, 0.06, 0.06, 0.06, 0.06))
 
 doc <- rtf_doc(ht) %>% titles_and_footnotes_from_df(
-  from.file='./scripts/table_examples/titles.xlsx',
+  from.file='./data/titles.xlsx',
   reader=example_custom_reader,
   table_number='14-7.02') %>%
   set_font_size(10) %>%
@@ -124,5 +124,5 @@ doc <- rtf_doc(ht) %>% titles_and_footnotes_from_df(
   set_column_header_buffer(1,0) %>%
   set_footer_height(1.3)
 
-write_rtf(doc, file='./scripts/table_examples/outputs/14-7.02.rtf')
+write_rtf(doc, file='./outputs/14-7.02.rtf')
 

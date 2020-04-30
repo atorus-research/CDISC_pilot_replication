@@ -8,8 +8,8 @@ library(assertthat)
 library(huxtable)
 library(pharmaRTF)
 
-source('./scripts/table_examples/config.R')
-source('./scripts/table_examples/funcs.R')
+source('./programs/config.R')
+source('./programs/funcs.R')
 
 # Data frame for ordering and to fill 0s
 ord <- tibble(
@@ -136,7 +136,7 @@ ht
 
 # Write into doc object and pull titles/footnotes from excel file
 doc <- rtf_doc(ht) %>% titles_and_footnotes_from_df(
-  from.file='./scripts/table_examples/titles.xlsx',
+  from.file='./data/titles.xlsx',
   reader=example_custom_reader,
   table_number='14-3.13') %>%
   set_font_size(10) %>%
@@ -144,7 +144,7 @@ doc <- rtf_doc(ht) %>% titles_and_footnotes_from_df(
   set_column_header_buffer(top=1)
 
 # Write out the RTF
-write_rtf(doc, file='./scripts/table_examples/outputs/14-3.13.rtf')
+write_rtf(doc, file='./outputs/14-3.13.rtf')
 
 
 

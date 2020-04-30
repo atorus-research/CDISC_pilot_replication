@@ -1,4 +1,4 @@
-# table 14-6.03
+# Table 14-6.03
 
 library(huxtable)
 library(plyr)
@@ -9,8 +9,8 @@ library(haven)
 library(pharmaRTF)
 library(tibble)
 
-source('./scripts/table_examples/config.R')
-source('./scripts/table_examples/funcs.R')
+source('./programs/config.R')
+source('./programs/funcs.R')
 
 n_pct <- function(n, pct, n_width=3, pct_width=3) {
   n <- unlist(n)
@@ -81,10 +81,6 @@ adlbc2 <- adlbc %>%
   summarise(N = n()) %>%
   group_by(PARAM, TRTP) %>%
   mutate(tot = sum(N))
-
-# pvals <- adlbc %>%
-#   filter(PARAM == "ALBUMIN") %>%
-#   fish_p(ANRIND, TRTP)
 
 adlbc_pvals <- list()
 
@@ -185,8 +181,8 @@ names(final) <- c(
   "p-val\\line[1]"
 )
 
-dm <- read_xpt(glue("{sdtm_lib}/dm.xpt"))
-headers <- dm %>%
+adsl <- read_xpt(glue("{adam_lib}/adsl.xpt"))
+headers <- adsl %>%
   filter(ARM != "Screen Failure") %>%
   group_by(ARM) %>%
   summarise(N = n()) %>%
@@ -234,7 +230,7 @@ ht2 <- ht %>%
 
 # Write into doc object and pull titles/footnotes from excel file
 doc <- rtf_doc(ht2, header_rows = 3) %>% titles_and_footnotes_from_df(
-  from.file='./scripts/table_examples/titles.xlsx',
+  from.file='./data/titles.xlsx',
   reader=example_custom_reader,
   table_number='14-6.03') %>%
   set_font_size(10) %>%
@@ -244,5 +240,5 @@ doc <- rtf_doc(ht2, header_rows = 3) %>% titles_and_footnotes_from_df(
 
 
 # Write out the RTF
-write_rtf(doc, file='./scripts/table_examples/outputs/14-6.03.rtf')
+write_rtf(doc, file='./outputs/14-6.03.rtf')
 
