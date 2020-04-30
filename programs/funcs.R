@@ -80,11 +80,11 @@ num_fmt <- function(var, digits=0, size=10, int_len=3) {
 
 num_fmt <- Vectorize(num_fmt)
 
-n_pct <- function(n, pct, n_width=3, pct_width=3, digits=0) {
+n_pct <- function(n, pct, n_width=3, pct_width=3, digits=0, mark_lt=TRUE) {
   # n (%) formatted string. e.g. 50 ( 75%)
   res <- n / pct
 
-  if (res < .01) {
+  if (res < .01 & mark_lt) {
     disp <- str_pad('<1', width=pct_width)
   } else {
     disp <- format(round(res * 100, digits=digits), width=pct_width, nsmall=digits)

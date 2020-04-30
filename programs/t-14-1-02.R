@@ -34,18 +34,18 @@ comp_stat <- adsl %>%
 
 #Make data.frame for table, unnamed so the cols are named correctly
 comp_df <- data.frame(
-  "Placebo" = n_pct(unlist(comp_stat[c(1,4), "n"]), sum(unlist(comp_stat[c(1,4), "n"]))),
-  "Xanomeline Low Dose" = n_pct(unlist(comp_stat[c(2,5), "n"]), sum(unlist(comp_stat[c(2,5), "n"]))),
-  "Xanomeline High Dose" = n_pct(unlist(comp_stat[c(3,6), "n"]), sum(unlist(comp_stat[c(3,6), "n"]))),
-  "Total" = c(n_pct(sum(comp_stat[1:3, "n"]), sum(comp_stat[,"n"])),
-              n_pct(sum(comp_stat[4:6, "n"]), sum(comp_stat[,"n"]))),
+  "Placebo" = n_pct(unlist(comp_stat[c(1,4), "n"]), sum(unlist(comp_stat[c(1,4), "n"])), mark_lt=FALSE),
+  "Xanomeline Low Dose" = n_pct(unlist(comp_stat[c(2,5), "n"]), sum(unlist(comp_stat[c(2,5), "n"])), mark_lt=FALSE),
+  "Xanomeline High Dose" = n_pct(unlist(comp_stat[c(3,6), "n"]), sum(unlist(comp_stat[c(3,6), "n"])), mark_lt=FALSE),
+  "Total" = c(n_pct(sum(comp_stat[1:3, "n"]), sum(comp_stat[,"n"]), mark_lt=FALSE),
+              n_pct(sum(comp_stat[4:6, "n"]), sum(comp_stat[,"n"]), mark_lt=FALSE)),
   row.names = c("\tCompleted Week 24", "\tEarly Termination (prior to Week 24)"),
   #Stop data.frame from adding periods
   check.names = FALSE, stringsAsFactors = FALSE
 )
 # Add tabs to row.names
 
-# Add missing row. TODO: probably a more elegant way of doing this.
+# Add missing row.
 comp_df["\tMissing", ] <- "  0 (  0%)"
 
 # p-value
@@ -69,10 +69,10 @@ term_reas_tot <- adsl %>%
 
 
 term_df <- data.frame(
-  "Placebo" = n_pct(unlist(term_reas[seq(1, 27, 3), "n"]), sum(adsl %>% filter(ARM == "Placebo") %>% summarise(n = n()))),
-  "Xanomeline Low Dose" = n_pct(unlist(term_reas[seq(2, 27, 3), "n"]), sum(adsl %>% filter(ARM == "Xanomeline Low Dose") %>% summarise(n = n()))),
-  "Xanomeline High Dose" = n_pct(unlist(term_reas[seq(3, 27, 3), "n"]), sum(adsl %>% filter(ARM == "Xanomeline High Dose") %>% summarise(n = n()))),
-  "Total" = n_pct(unlist(term_reas_tot[, "n"]), sum(adsl %>% summarise(n = n()))),
+  "Placebo" = n_pct(unlist(term_reas[seq(1, 27, 3), "n"]), sum(adsl %>% filter(ARM == "Placebo") %>% summarise(n = n())), mark_lt=FALSE),
+  "Xanomeline Low Dose" = n_pct(unlist(term_reas[seq(2, 27, 3), "n"]), sum(adsl %>% filter(ARM == "Xanomeline Low Dose") %>% summarise(n = n())), mark_lt=FALSE),
+  "Xanomeline High Dose" = n_pct(unlist(term_reas[seq(3, 27, 3), "n"]), sum(adsl %>% filter(ARM == "Xanomeline High Dose") %>% summarise(n = n())), mark_lt=FALSE),
+  "Total" = n_pct(unlist(term_reas_tot[, "n"]), sum(adsl %>% summarise(n = n())), mark_lt=FALSE),
   row.names = c(
     "\tAdverse Event",
     "\tDeath",
@@ -100,7 +100,7 @@ term_p_2 <- adsl %>%
   select(ARM, DCREASCD) %>%
   mutate(loefl = ifelse(DCREASCD %in% "Lack of Efficacy", 1, 0)) %>%
   fish_p(ARM ,loefl, width = 6)
-term_df[5,] <- attach_p(term_df[5,], term_p_2)
+term_df["\tLack of Efficacy[2]",] <- attach_p(term_df[3,], term_p_2)
 
 
 ## Add Table lables
