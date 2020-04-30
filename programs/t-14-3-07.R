@@ -8,8 +8,8 @@ library(assertthat)
 library(huxtable)
 library(pharmaRTF)
 
-source('./scripts/table_examples/config.R')
-source('./scripts/table_examples/funcs.R')
+source('./programs/config.R')
+source('./programs/funcs.R')
 
 # Read in the ADLB datasets ----
 adas <- read_xpt(glue("{adam_lib}/adadas.xpt")) %>%
@@ -55,7 +55,7 @@ ht
 # Write into doc object and pull titles/footnotes from excel file
 ## TODO: `titles_and_footnotes_from_df`` should be an exported function so remove internal reference when updated
 doc <- rtf_doc(ht) %>% pharmaRTF:::titles_and_footnotes_from_df(
-  from.file='./scripts/table_examples/titles.xlsx',
+  from.file='./data/titles.xlsx',
   reader=example_custom_reader,
   table_number='14-3.07') %>%
   set_font_size(10) %>%
@@ -63,7 +63,7 @@ doc <- rtf_doc(ht) %>% pharmaRTF:::titles_and_footnotes_from_df(
   set_column_header_buffer(top=1)
 
 # Write out the RTF
-write_rtf(doc, file='./scripts/table_examples/outputs/14-3.07.rtf')
+write_rtf(doc, file='./outputs/14-3.07.rtf')
 
 
 

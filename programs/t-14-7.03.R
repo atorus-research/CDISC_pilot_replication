@@ -11,8 +11,8 @@ library(pharmaRTF)
 library(tibble)
 
 
-source('./scripts/table_examples/config.R')
-source('./scripts/table_examples/funcs.R')
+source('./programs/config.R')
+source('./programs/funcs.R')
 
 n_pct <- function(n, pct, n_width=3, pct_width=3) {
   n <- unlist(n)
@@ -58,10 +58,10 @@ bw_stats <- add_column(bw_stats, "Measure" = "Weight (kg)", .before= 1)
 bw_stats[unlist(bw_stats[, 3]) != "Baseline", "TRTP"] <- NA
 bw_stats[!(bw_stats$TRTP %in% "Placebo"), "Measure"] <- NA
 
-dm <- read_xpt(glue("{sdtm_lib}/dm.xpt"))
+adsl <- read_xpt(glue("{adam_lib}/adsl.xpt"))
 bw_stats <- add_column(bw_stats, "N" = apply(bw_stats,
                            1,
-                           function(x) {aSum <- sum(dm[,"ARM"] == x["TRTP"], na.rm = TRUE)
+                           function(x) {aSum <- sum(adsl[,"ARM"] == x["TRTP"], na.rm = TRUE)
                            ifelse(aSum == 0, NA, aSum)}),
            .before = 3)
 # Pad blank rows after End of Trt. rows
@@ -118,7 +118,7 @@ bw_bl_1[!(bw_bl_1$TRTP %in% "Placebo"), "Measure"] <- NA
 
 bw_bl_1 <- add_column(bw_bl_1, "N" = apply(bw_bl_1,
                                              1,
-                                             function(x) {aSum <- sum(dm[,"ARM"] == x["TRTP"], na.rm = TRUE)
+                                             function(x) {aSum <- sum(adsl[,"ARM"] == x["TRTP"], na.rm = TRUE)
                                              ifelse(aSum == 0, NA, aSum)}),
                        .before = 3)
 bw_bl_1 <- pad_row(bw_bl_1, which(bw_bl_1$VISIT == "End of Trt.") + 1)
@@ -176,7 +176,7 @@ huxtable::escape_contents(ht) <- FALSE
 
 # Write into doc object and pull titles/footnotes from excel file
 doc <- rtf_doc(ht) %>% titles_and_footnotes_from_df(
-  from.file='./scripts/table_examples/titles.xlsx',
+  from.file='./data/titles.xlsx',
   reader=example_custom_reader,
   table_number='14-7.03') %>%
   set_font_size(10) %>%
@@ -184,5 +184,5 @@ doc <- rtf_doc(ht) %>% titles_and_footnotes_from_df(
   set_header_height(1) %>%
   set_column_header_buffer(1,0)
 
-write_rtf(doc, file='./scripts/table_examples/outputs/14-7.03.rtf')
+write_rtf(doc, file='./outputs/14-7.03.rtf')
 

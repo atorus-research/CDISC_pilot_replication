@@ -9,8 +9,8 @@ library(haven)
 library(pharmaRTF)
 library(tibble)
 
-source('./scripts/table_examples/config.R')
-source('./scripts/table_examples/funcs.R')
+source('./programs/config.R')
+source('./programs/funcs.R')
 
 
 pad_row <- function(df, r) {
@@ -27,24 +27,9 @@ pad_row <- function(df, r) {
   df
 }
 
-dm <- read_xpt(glue("{sdtm_lib}/dm.xpt"))
+adsl <- read_xpt(glue("{adam_lib}/adsl.xpt"))
 advs <- read_xpt(glue("{adam_lib}/advs.xpt")) %>%
   filter(SAFFL == "Y", ANL01FL == "Y")
-vs <- read_xpt(glue("{sdtm_lib}/vs.xpt"))
-
-# advs <- advs %>%
-#   group_by(USUBJID, PARAM) %>%
-#   mutate(eotfl1 = ifelse(ADT < TRTEDT, "Y", "N")) %>%
-#   group_by(eotfl1) %>%
-#   mutate(EOTFL = ifelse(ADT == max(ADT) & eotfl1 == "Y", "Y", ""))
-
-# advs <- ddply(advs, c("USUBJID", "PARAM"), function(x) {
-#   maxdt <- max(
-#     x[(x[, "ADT"] < x[, "TRTEDT"] & x[, "ABLFL"] != "Y"), "ADT"],
-#       na.rm = TRUE)
-#   x$EOTFL <- ifelse(x[, "ADT"] == maxdt, "Y", "N")
-#   x
-# })
 
 advs$EOTFL <- ifelse(advs[, "AVISIT"] == "End of Treatment", "Y", "")
 advs$W24FL <- ifelse(advs[, "AVISIT"] == "Week 24", "Y", "")
@@ -102,7 +87,7 @@ advs3 <- rbind(advs_bl, advs_w24, advs_eot) %>%
 
 advs4 <- add_column(advs3, "N" = apply(advs3,
                                        1,
-                                       function(x) {aSum <- sum(dm[,"ARM"] == x["TRTP"], na.rm = TRUE)
+                                       function(x) {aSum <- sum(adsl[,"ARM"] == x["TRTP"], na.rm = TRUE)
                                        ifelse(aSum == 0, NA, aSum)}),
                     .after = 3)
 
@@ -154,7 +139,7 @@ ht <- advs4 %>%
   huxtable::set_col_width(1:ncol(advs4), c(0.2, 0.15, 0.19, 0.03, 0.1, 0.03, 0.06, 0.06, 0.06, 0.06, 0.06))
 
 doc <- rtf_doc(ht) %>% titles_and_footnotes_from_df(
-  from.file='./scripts/table_examples/titles.xlsx',
+  from.file='./data/titles.xlsx',
   reader=example_custom_reader,
   table_number='14-7.01') %>%
   set_font_size(10) %>%
@@ -163,6 +148,6 @@ doc <- rtf_doc(ht) %>% titles_and_footnotes_from_df(
   set_column_header_buffer(1,0) %>%
   set_footer_height(1.4)
 
-write_rtf(doc, file='./scripts/table_examples/outputs/14-7.01.rtf')
+write_rtf(doc, file='./outputs/14-7.01.rtf')
 
 

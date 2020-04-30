@@ -8,8 +8,8 @@ library(assertthat)
 library(huxtable)
 library(pharmaRTF)
 
-source('./scripts/table_examples/config.R')
-source('./scripts/table_examples/funcs.R')
+source('./programs/config.R')
+source('./programs/funcs.R')
 
 # Read in the ADAS datasets and filter ----
 adas <- read_xpt(glue("{adam_lib}/adadas.xpt")) %>%
@@ -113,12 +113,10 @@ ht <- as_hux(bind_rows(header, final)) %>%
   huxtable::set_width(1.5) %>% # Take up the whole width of the page
   huxtable::set_escape_contents(FALSE) %>% # Allow RTF strings
   huxtable::set_col_width(c(.09, .19, .05, .06, .06, .06, .05, .05, .06, .06, .06, .05, .05, .05, .06)) # Column widths as a ratio
-ht
 
 # Write into doc object and pull titles/footnotes from excel file
-## TODO: `titles_and_footnotes_from_df`` should be an exported function so remove internal reference when updated
 doc <- rtf_doc(ht, header_rows=2) %>% pharmaRTF:::titles_and_footnotes_from_df(
-  from.file='./scripts/table_examples/titles.xlsx',
+  from.file='./data/titles.xlsx',
   reader=example_custom_reader,
   table_number='14-3.10') %>%
   set_font_size(10) %>%
@@ -126,7 +124,7 @@ doc <- rtf_doc(ht, header_rows=2) %>% pharmaRTF:::titles_and_footnotes_from_df(
   set_column_header_buffer(top=1)
 
 # Write out the RTF
-write_rtf(doc, file='./scripts/table_examples/outputs/14-3.10.rtf')
+write_rtf(doc, file='./outputs/14-3.10.rtf')
 
 
 

@@ -1,6 +1,5 @@
 # T-14-6.04
 
-
 library(huxtable)
 library(plyr)
 library(dplyr)
@@ -10,8 +9,8 @@ library(haven)
 library(pharmaRTF)
 library(tibble)
 
-source('./scripts/table_examples/config.R')
-source('./scripts/table_examples/funcs.R')
+source('./programs/config.R')
+source('./programs/funcs.R')
 
 pad_row <- function(df, r) {
   #df - dataframe to insert pad
@@ -169,7 +168,7 @@ comb3$ANRIND <- as.character(recode(comb3$ANRIND,
                        "N" = "Normal",
                        "H" = "High"))
 names(comb3) <- c(
-  "",
+  "rowlbl",
   "Week",
   "Shift to",
   "Normal at Baseline",
@@ -185,13 +184,13 @@ comb3 <- comb3[!apply(comb3, 1, function(x) {
 }), ]
 
 comb4 <- pad_row(comb3, which(comb3$`Shift to` == "n")) %>%
-  add_row("Week" = NA, .before = 1) %>%
+  add_row('Week' = NA, .before = 1) %>%
   add_row("Week" = NA, .before = 1)
 comb4 <- comb4 %>%
   add_row("Week" = NA, .before = 541) %>%
   add_row("Week" = NA, .before = 541)
 
-comb4[,1] <- as.character(comb4$...1)
+comb4[,1] <- as.character(comb4$rowlbl)
 
 comb4[!(comb4$`Shift to` %in% "n") , 2] <- NA
 comb4[!(comb4$Week %in% "2"), 1] <- NA
@@ -213,8 +212,8 @@ names(comb4) <- c(
   "High at Baseline"
 )
 
-dm <- read_xpt(glue("{sdtm_lib}/dm.xpt"))
-headers <- dm %>%
+adsl <- read_xpt(glue("{adam_lib}/adsl.xpt"))
+headers <- adsl %>%
   filter(ARM != "Screen Failure") %>%
   group_by(ARM) %>%
   summarise(N = n()) %>%
@@ -249,11 +248,9 @@ ht2 <- ht %>%
   huxtable::set_align(1, 1:9, "center") %>%
   huxtable::set_col_width(1:9, c(0.29, 0.06, 0.07, rep(0.1, 6)))
 
-
-
 # Write into doc object and pull titles/footnotes from excel file
 doc <- rtf_doc(ht2, header_rows = 3) %>% titles_and_footnotes_from_df(
-  from.file='./scripts/table_examples/titles.xlsx',
+  from.file='./data/titles.xlsx',
   reader=example_custom_reader,
   table_number='14-6.04') %>%
   set_font_size(10) %>%
@@ -264,6 +261,6 @@ doc <- rtf_doc(ht2, header_rows = 3) %>% titles_and_footnotes_from_df(
 
 
 # Write out the RTF
-write_rtf(doc, file='./scripts/table_examples/outputs/14-6.04.rtf')
+write_rtf(doc, file='./outputs/14-6.04.rtf')
 
 

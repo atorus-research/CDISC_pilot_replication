@@ -1,3 +1,5 @@
+# t-14-1-03.R
+#   CDISC Pilot Table 14-1.03
 
 library(plyr)
 library(dplyr)
@@ -8,8 +10,8 @@ library(assertthat)
 library(huxtable)
 library(pharmaRTF)
 
-source('./scripts/table_examples/config.R')
-source('./scripts/table_examples/funcs.R')
+source('./programs/config.R')
+source('./programs/funcs.R')
 
 # Read in the datasets
 adsl <- read_xpt(glue("{adam_lib}/adsl.xpt")) %>%
@@ -123,12 +125,12 @@ ht <- df %>%
   huxtable::set_col_width(1:ncol(df), value = c(0.1, 0.1, rep(0.07, 12)))
 
 doc <- rtf_doc(ht, header_rows = 2) %>% titles_and_footnotes_from_df(
-  from.file='./scripts/table_examples/titles.xlsx',
+  from.file='./data/titles.xlsx',
   reader=example_custom_reader,
   table_number='14-1.03') %>%
   set_font_size(10) %>%
   set_ignore_cell_padding(TRUE) %>%
   set_column_header_buffer(top = 1)
 
-write_rtf(doc, file='./scripts/table_examples/outputs/14-1.03.rtf')
+write_rtf(doc, file='./outputs/14-1.03.rtf')
 

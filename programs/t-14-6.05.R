@@ -7,9 +7,8 @@ library(haven)
 library(tibble)
 library(pharmaRTF)
 
-
-source('./scripts/table_examples/config.R')
-source('./scripts/table_examples/funcs.R')
+source('./programs/config.R')
+source('./programs/funcs.R')
 
 pad_row <- function(df, r) {
   #df - dataframe to insert pad
@@ -134,7 +133,6 @@ comb2 <- comb %>%
   ungroup()
 
 
-##FIXME
 pvals <- c()
 for(i in levels(comb$PARAM)) {
   mat <-  comb[comb$PARAM == i, c("ANRIND", "TRTP", "BNRIND")]
@@ -217,8 +215,8 @@ names(comb5) <- c(
   "p-\\line value\\line[2]"
 )
 
-dm <- read_xpt(glue("{sdtm_lib}/dm.xpt"))
-headers <- dm %>%
+adsl <- read_xpt(glue("{adam_lib}/adsl.xpt"))
+headers <- adsl %>%
   filter(ARM != "Screen Failure") %>%
   group_by(ARM) %>%
   summarise(N = n()) %>%
@@ -250,12 +248,12 @@ ht2 <- ht %>%
   huxtable::set_align(3, 1:9, "center") %>%
   huxtable::set_align(1, 1:9, "center") %>%
   huxtable::set_align(4:102, 9, "right") %>%
-  huxtable::set_col_width(1:9, c(0.23, rep(0.09, 7), 0.06))
+  huxtable::set_col_width(1:9, c(0.31, rep(0.09, 7), 0.06))
 
 
 # Write into doc object and pull titles/footnotes from excel file
 doc <- rtf_doc(ht2, header_rows = 3) %>% titles_and_footnotes_from_df(
-  from.file='./scripts/table_examples/titles.xlsx',
+  from.file='./data/titles.xlsx',
   reader=example_custom_reader,
   table_number='14-6.05') %>%
   set_font_size(10) %>%
@@ -264,7 +262,6 @@ doc <- rtf_doc(ht2, header_rows = 3) %>% titles_and_footnotes_from_df(
   set_header_height(1) %>%
   set_footer_height(1.3)
 
-
 # Write out the RTF
-write_rtf(doc, file='./scripts/table_examples/outputs/14-6.05.rtf')
+write_rtf(doc, file='./outputs/14-6.05.rtf')
 

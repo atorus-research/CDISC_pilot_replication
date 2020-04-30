@@ -9,8 +9,8 @@ library(assertthat)
 library(pharmaRTF)
 library(tibble)
 
-source('./scripts/table_examples/config.R')
-source('./scripts/table_examples/funcs.R')
+source('./programs/config.R')
+source('./programs/funcs.R')
 
 ## Modified n_pct function
 n_pct <- function(n, pct) {
@@ -43,7 +43,6 @@ cm_2 <- data.frame(
   "Xanomeline High Dose" = cm_res[3],
   stringsAsFactors = FALSE, check.names = FALSE, row.names = FALSE
 )
-
 
 ### Table
 # Medication classes
@@ -124,7 +123,7 @@ huxtable::align(ht)[-1,2:4] <- "left"
 
 # Write into doc object and pull titles/footnotes from excel file
 doc <- rtf_doc(ht) %>% titles_and_footnotes_from_df(
-  from.file='./scripts/table_examples/titles.xlsx',
+  from.file='./data/titles.xlsx',
   reader=example_custom_reader,
   table_number='14-7.04') %>%
   set_font_size(10) %>%
@@ -133,5 +132,5 @@ doc <- rtf_doc(ht) %>% titles_and_footnotes_from_df(
   set_column_header_buffer(1,0) %>%
   set_footer_height(1)
 
-write_rtf(doc, file='./scripts/table_examples/outputs/14-7.04.rtf')
+write_rtf(doc, file='./outputs/14-7.04.rtf')
 

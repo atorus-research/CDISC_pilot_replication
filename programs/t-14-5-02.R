@@ -7,8 +7,8 @@ library(haven)
 library(assertthat)
 library(pharmaRTF)
 
-source('./scripts/table_examples/config.R')
-source('./scripts/table_examples/funcs.R')
+source('./programs/config.R')
+source('./programs/funcs.R')
 
 # Read in ADSL
 adae <- read_xpt(glue("{adam_lib}/adae.xpt")) %>%
@@ -91,7 +91,7 @@ huxtable::top_padding(ht) <- 0
 
 # Write into doc object and pull titles/footnotes from excel file
 doc <- rtf_doc(ht, header_rows = 2) %>% titles_and_footnotes_from_df(
-  from.file='./scripts/table_examples/titles.xlsx',
+  from.file='./data/titles.xlsx',
   reader=example_custom_reader,
   table_number='14-5.02') %>%
   set_font_size(10) %>%
@@ -99,4 +99,4 @@ doc <- rtf_doc(ht, header_rows = 2) %>% titles_and_footnotes_from_df(
   set_column_header_buffer(top=1)
 
 # Write out the RTF
-write_rtf(doc, file='./scripts/table_examples/outputs/14-5.02.rtf')
+write_rtf(doc, file='./outputs/14-5.02.rtf')
