@@ -7,7 +7,7 @@ Atorus Research has now regenerated the table outputs within the CDISC Pilot Pro
 -	Demonstrate that we were able to obtain matching outputs using R
 -	Provide open source code to the public to demonstrate how we were able to do this
 -	Demonstrate our first publicly released R package, `pharmaRTF`, in action.
-You can find our package pharmaRTF right [here](github_link.com)
+You can find our package pharmaRTF right [here](https://github.com/atorus-research/pharmaRTF)
 
 ## Setup Instructions
 To obtain the data for this repository, you can download the data from the PHUSE Github Repository, using [this link](https://github.com/phuse-org/phuse-scripts/blob/master/data/adam/TDF_ADaM_v1.0.zip) for ADaM data and [this link](https://github.com/phuse-org/phuse-scripts/blob/master/data/sdtm/TDF_SDTM_v1.0%20.zip)
