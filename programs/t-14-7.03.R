@@ -98,8 +98,9 @@ names(bw_stats)[4] <- "VISIT"
 bw_bl <- advs2 %>%
   select(USUBJID, TRTP, ABLFL, W24, EOTFL, AVAL) %>%
   group_by(USUBJID) %>%
-  mutate(`WEEK 24` = .blfun(., USUBJID)[1],
-         `End of Trt.` = .blfun(., USUBJID)[2]) %>%
+  summarise(`WEEK 24` = .blfun(., USUBJID)[1],
+         `End of Trt.` = .blfun(., USUBJID)[2],
+         TRTP = unique(TRTP)) %>%
   select(USUBJID, TRTP, `WEEK 24`, `End of Trt.`) %>%
   pivot_longer(c(`WEEK 24`, `End of Trt.`), names_to = "VISIT", values_to = "change")
 ## Add ordered factor to order arms

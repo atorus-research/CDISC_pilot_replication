@@ -18,6 +18,7 @@ adsl <- read_xpt(glue("{adam_lib}/adsl.xpt")) %>%
   filter(ITTFL == "Y")
 
 adsl$SITEGR1 <- ordered(adsl$SITEGR1, c(
+  "Pooled\\line Id",
   "701",
   "703",
   "704",
@@ -28,9 +29,11 @@ adsl$SITEGR1 <- ordered(adsl$SITEGR1, c(
   "713",
   "716",
   "718",
-  "900"
+  "900",
+  "TOTAL"
 ))
 adsl$SITEID <- ordered(adsl$SITEID, c(
+  "Site\\line Id",
   "701",
   "703",
   "704",
@@ -110,13 +113,13 @@ all$TRT01P <- ordered(all$TRT01P, c(
   "Total"
 ))
 df <- all %>%
-  arrange(TRT01P, FLFL) %>%
+  arrange(SITEGR1, SITEID, TRT01P, FLFL) %>%
   pivot_wider(id_cols = c(SITEGR1, SITEID), names_from = c(TRT01P, FLFL), values_from = c(n), values_fill = list(n = 0)) %>%
-  ungroup
+  ungroup()
 
 
 df[nrow(df) + 1,] <- c(
-  "Total",
+  "TOTAL",
   "",
   unname(apply(df[,3:ncol(df)], 2, sum))
 )
