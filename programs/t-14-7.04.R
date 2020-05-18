@@ -1,6 +1,5 @@
 ### Table 14-7.01: Summary of Concomitant Medications (Number of Subjects)
 
-library(plyr)
 library(dplyr)
 library(glue)
 library(tidyverse)
@@ -49,7 +48,7 @@ cm_2 <- data.frame(
 cm_class <- sort(unique(cm$CMCLAS))
 
 # By Class
-df <- ldply(cm_class, function(class_i){
+df <- plyr::ldply(cm_class, function(class_i){
   class_by_arm <- as.data.frame(adsl %>%
     group_by(ARM) %>%
     summarise(n = sum(USUBJID %in% unlist(unique(cm[cm$CMCLAS == class_i, "USUBJID"])))))
@@ -69,7 +68,7 @@ df <- ldply(cm_class, function(class_i){
   cm_medi <- unlist(unique(cm[cm$CMCLAS == class_i, "CMDECOD"]), use.names = FALSE)
 
   #By Medication
-  df_2 <- ldply(cm_medi, function(medi_i) {
+  df_2 <- plyr::ldply(cm_medi, function(medi_i) {
 
     medi_by_arm <- as.data.frame(adsl %>%
       group_by(ARM) %>%

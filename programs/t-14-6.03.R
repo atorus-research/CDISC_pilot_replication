@@ -1,7 +1,6 @@
 # Table 14-6.03
 
 library(huxtable)
-library(plyr)
 library(dplyr)
 library(glue)
 library(tidyverse)

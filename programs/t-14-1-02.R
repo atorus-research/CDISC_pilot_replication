@@ -1,6 +1,5 @@
 ### Table 14-1.02 Summary of End of Study Data
 
-library(plyr)
 library(dplyr)
 library(glue)
 library(tidyverse)
