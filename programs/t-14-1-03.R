@@ -1,7 +1,6 @@
 # t-14-1-03.R
 #   CDISC Pilot Table 14-1.03
 
-library(plyr)
 library(dplyr)
 library(glue)
 library(tidyverse)
@@ -50,7 +49,8 @@ adsl$SITEID <- ordered(adsl$SITEID, c(
   "711",
   "714",
   "715",
-  "717"
+  "717",
+  ""
 ))
 adsl$ITTFL <- ordered(adsl$ITTFL, c("Y", "N"))
 adsl$EFFFL <- ordered(adsl$EFFFL, c("Y", "N"))
@@ -115,7 +115,8 @@ all$TRT01P <- ordered(all$TRT01P, c(
 df <- all %>%
   arrange(SITEGR1, SITEID, TRT01P, FLFL) %>%
   pivot_wider(id_cols = c(SITEGR1, SITEID), names_from = c(TRT01P, FLFL), values_from = c(n), values_fill = list(n = 0)) %>%
-  ungroup()
+  ungroup() %>%
+  as.data.frame()
 
 
 df[nrow(df) + 1,] <- c(
