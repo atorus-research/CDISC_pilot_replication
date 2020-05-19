@@ -118,12 +118,14 @@ df <- all %>%
   ungroup() %>%
   as.data.frame()
 
-
-df[nrow(df) + 1,] <- c(
-  "TOTAL",
-  "",
-  unname(apply(df[,3:ncol(df)], 2, sum))
-)
+# Stack the total row to the bottom of the data frame
+df <-rbind(df, 
+          data.frame(
+            SITEGR1 = "TOTAL",
+            SITEID = "",
+            t(apply(df[,3:ncol(df)], 2, sum)), check.names = FALSE
+        )
+      )
 
 names(df) <- c(
   "Pooled\\line Id",
@@ -132,7 +134,7 @@ names(df) <- c(
 )
 
 df[2:(nrow(df) + 1),] <- df[1:nrow(df),]
-df[1,] <- names(df)
+df[1,] <- as.list(names(df))
 df <- df %>%
   add_row("Pooled\\line Id" = "", .before = 1) %>%
   add_row("Pooled\\line Id" = "", .before = 1)
