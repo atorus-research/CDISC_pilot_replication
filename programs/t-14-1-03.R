@@ -1,7 +1,6 @@
 # t-14-1-03.R
 #   CDISC Pilot Table 14-1.03
 
-library(plyr)
 library(dplyr)
 library(glue)
 library(tidyverse)
@@ -117,12 +116,14 @@ df <- all %>%
   pivot_wider(id_cols = c(SITEGR1, SITEID), names_from = c(TRT01P, FLFL), values_from = c(n), values_fill = list(n = 0)) %>%
   ungroup()
 
-
-df[nrow(df) + 1,] <- c(
-  "TOTAL",
-  "",
-  unname(apply(df[,3:ncol(df)], 2, sum))
-)
+# Stack the total row to the bottom of the data frame
+df <-rbind(df, 
+          data.frame(
+            SITEGR1 = "TOTAL",
+            SITEID = "",
+            t(apply(df[,3:ncol(df)], 2, sum)), check.names = FALSE
+        )
+      )
 
 names(df) <- c(
   "Pooled\\line Id",
@@ -131,7 +132,7 @@ names(df) <- c(
 )
 
 df[2:(nrow(df) + 1),] <- df[1:nrow(df),]
-df[1,] <- names(df)
+df[1,] <- as.list(names(df))
 df <- df %>%
   add_row("Pooled\\line Id" = "", .before = 1) %>%
   add_row("Pooled\\line Id" = "", .before = 1)
