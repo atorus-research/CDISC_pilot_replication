@@ -4,16 +4,14 @@
 library(glue)
 library(tidyverse)
 library(haven)
-library(assertthat)
 library(pharmaRTF)
 
 source('./programs/config.R')
 source('./programs/funcs.R')
 
-# Read in ADSL
+# Read in ADSL and ADAE
 adae <- read_xpt(glue("{adam_lib}/adae.xpt")) %>%
   filter(SAFFL == 'Y' & TRTEMFL == 'Y' & AESER == 'Y')
-
 
 adsl <- read_xpt(glue("{adam_lib}/adsl.xpt"))
 
@@ -22,11 +20,11 @@ header_n <- adsl %>%
   get_header_n()
 
 # Overall counts
-overall <- ae_counts(adae) %>%
+overall <- ae_counts(adae, N_counts = header_n) %>%
   mutate(AETERM = 'ANY BODY SYSTEM', AEBODSYS = 'ANY BODY SYSTEM', ord1=1, ord2=1)
 
 # System Organ Class counts
-bodsys <- ae_counts(adae, AEBODSYS) %>%
+bodsys <- ae_counts(adae, AEBODSYS, N_counts = header_n) %>%
   mutate(AETERM = AEBODSYS, ord1=2, ord2=1) %>%
   arrange(AEBODSYS)
 
@@ -35,7 +33,7 @@ pad <- bodsys %>%
   mutate(ord3=999)
 
 # Individual term counts
-term <- ae_counts(adae, AEBODSYS, AETERM, sort=TRUE) %>%
+term <- ae_counts(adae, AEBODSYS, AETERM, sort=TRUE, N_counts = header_n) %>%
   mutate(AETERM = paste0('  ', AETERM), ord1=2, ord2=2)
 
 # Bring the data together
