@@ -183,7 +183,7 @@ invert.list <- function (NL) {
 }
 
 # Count of subjects with an adverse event
-ae_counts <- function(.data, ..., N_counts = header_n, sort=FALSE) {
+ae_counts <- function(.data, ..., N_counts = NULL, sort=FALSE) {
 
   # Get the grouping
   grouped_data <- .data %>%
