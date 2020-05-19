@@ -1,7 +1,6 @@
 # T-14-6.04
 
 library(huxtable)
-library(plyr)
 library(dplyr)
 library(glue)
 library(tidyverse)

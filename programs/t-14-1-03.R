@@ -17,59 +17,109 @@ source('./programs/funcs.R')
 adsl <- read_xpt(glue("{adam_lib}/adsl.xpt")) %>%
   filter(ITTFL == "Y")
 
-adsl_grp <- as.data.frame(adsl %>%
-  group_by(SITEGR1, SITEID, TRT01P, ITTFL, EFFFL, COMP24FL) %>%
-  summarise(n = n()))
+adsl$SITEGR1 <- ordered(adsl$SITEGR1, c(
+  "Pooled\\line Id",
+  "701",
+  "703",
+  "704",
+  "705",
+  "708",
+  "709",
+  "710",
+  "713",
+  "716",
+  "718",
+  "900",
+  "TOTAL"
+))
+adsl$SITEID <- ordered(adsl$SITEID, c(
+  "Site\\line Id",
+  "701",
+  "703",
+  "704",
+  "705",
+  "708",
+  "709",
+  "710",
+  "713",
+  "716",
+  "718",
+  "702",
+  "706",
+  "707",
+  "711",
+  "714",
+  "715",
+  "717"
+))
+adsl$ITTFL <- ordered(adsl$ITTFL, c("Y", "N"))
+adsl$EFFFL <- ordered(adsl$EFFFL, c("Y", "N"))
+adsl$COMP24FL <- ordered(adsl$COMP24FL, c("Y", "N"))
 
-df <- ddply(.data = adsl_grp, .variables = "SITEID", .fun = function(x) {
-  siteid_i <- unique(x[, "SITEID"])
-  SITEGR1_i <- unique(x[, "SITEGR1"])
-  data.frame(
-    SITEGR1 = SITEGR1_i,
-    PlaITTFL = sum(adsl_grp[(adsl_grp$SITEID == siteid_i &
-                        adsl_grp$TRT01P == "Placebo" &
-                        adsl_grp$ITTFL == "Y"), "n"]),
-    PlaEff = sum(adsl_grp[(adsl_grp$SITEID == siteid_i &
-                         adsl_grp$TRT01P == "Placebo" &
-                         adsl_grp$EFFFL == "Y"), "n"]),
-    PlaCom = sum(adsl_grp[(adsl_grp$SITEID == siteid_i &
-                         adsl_grp$TRT01P == "Placebo" &
-                         adsl_grp$COMP24FL == "Y"), "n"]),
-    XanLowITTFL = sum(adsl_grp[(adsl_grp$SITEID == siteid_i &
-                             adsl_grp$TRT01P == "Xanomeline Low Dose" &
-                             adsl_grp$ITTFL == "Y"), "n"]),
-    XanLowEff = sum(adsl_grp[(adsl_grp$SITEID == siteid_i &
-                             adsl_grp$TRT01P == "Xanomeline Low Dose" &
-                             adsl_grp$EFFFL == "Y"), "n"]),
-    XanLowCom = sum(adsl_grp[(adsl_grp$SITEID == siteid_i &
-                             adsl_grp$TRT01P == "Xanomeline Low Dose" &
-                             adsl_grp$COMP24FL == "Y"), "n"]),
-    XanHighITTFL = sum(adsl_grp[(adsl_grp$SITEID == siteid_i &
-                              adsl_grp$TRT01P == "Xanomeline High Dose" &
-                              adsl_grp$ITTFL == "Y"), "n"]),
-    XanHighEff = sum(adsl_grp[(adsl_grp$SITEID == siteid_i &
-                              adsl_grp$TRT01P == "Xanomeline High Dose" &
-                              adsl_grp$EFFFL == "Y"), "n"]),
-    XanHighCom = sum(adsl_grp[(adsl_grp$SITEID == siteid_i &
-                              adsl_grp$TRT01P == "Xanomeline High Dose" &
-                              adsl_grp$COMP24FL == "Y"), "n"]),
-    TotITTFL = sum(adsl_grp[(adsl_grp$SITEID == siteid_i &
-                          adsl_grp$ITTFL == "Y"), "n"]),
-    TotEff = sum(adsl_grp[(adsl_grp$SITEID == siteid_i &
-                          adsl_grp$EFFFL == "Y"), "n"]),
-    TotCom = sum(adsl_grp[(adsl_grp$SITEID == siteid_i &
-                          adsl_grp$COMP24FL == "Y"), "n"]),
-    check.rows = FALSE, stringsAsFactors = FALSE
-  )
-}, .inform = TRUE)
-df[,c(1,2)] <- df[,c(2,1)]
-#sort by siteid
-df[1:nrow(df),] <- df[sort(df[,2], index.return = TRUE)$ix,]
-#then by grp
-df[1:nrow(df),] <- df[sort(df[,1], index.return = TRUE)$ix, ]
+
+
+adsl_grp1 <- adsl %>%
+  select(SITEGR1, SITEID, TRT01P, ITTFL) %>%
+  group_by(SITEGR1, SITEID, TRT01P, ITTFL) %>%
+  filter(ITTFL == "Y") %>%
+  summarise(n = n())
+adsl_grp1[,4] <- "ITTFL"
+names(adsl_grp1)[4] <- "FLFL"
+adsl_grp2 <- adsl %>%
+  select(SITEGR1, SITEID, TRT01P, EFFFL) %>%
+  group_by(SITEGR1, SITEID, TRT01P, EFFFL) %>%
+  filter(EFFFL == "Y") %>%
+  summarise(n = n())
+adsl_grp2[,4] <- "EFFFL"
+names(adsl_grp2)[4] <- "FLFL"
+adsl_grp3 <- adsl %>%
+  select(SITEGR1, SITEID, TRT01P, COMP24FL) %>%
+  group_by(SITEGR1, SITEID, TRT01P, COMP24FL) %>%
+  filter(COMP24FL == "Y") %>%
+  summarise(n = n())
+adsl_grp3[,4] <- "COMP24FL"
+names(adsl_grp3)[4] <- "FLFL"
+adsl_grp4 <- adsl %>%
+  select(SITEGR1, SITEID, ITTFL) %>%
+  group_by(SITEGR1, SITEID, ITTFL) %>%
+  filter(ITTFL == "Y") %>%
+  summarise(n = n())
+adsl_grp4[,3] <- "ITTFL"
+names(adsl_grp4)[3] <- "FLFL"
+adsl_grp4$TRT01P <- "Total"
+adsl_grp5 <- adsl %>%
+  select(SITEGR1, SITEID, EFFFL) %>%
+  group_by(SITEGR1, SITEID, EFFFL) %>%
+  filter(EFFFL == "Y") %>%
+  summarise(n = n())
+adsl_grp5[,3] <- "EFFFL"
+names(adsl_grp5)[3] <- "FLFL"
+adsl_grp5$TRT01P <- "Total"
+adsl_grp6 <- adsl %>%
+  select(SITEGR1, SITEID, COMP24FL) %>%
+  group_by(SITEGR1, SITEID, COMP24FL) %>%
+  filter(COMP24FL == "Y") %>%
+  summarise(n = n())
+adsl_grp6[,3] <- "COMP24FL"
+names(adsl_grp6)[3] <- "FLFL"
+adsl_grp6$TRT01P <- "Total"
+
+all <- rbind(adsl_grp1, adsl_grp2, adsl_grp3, adsl_grp4, adsl_grp5, adsl_grp6)
+all$FLFL <- ordered(all$FLFL, c("ITTFL", "EFFFL", "COMP24FL"))
+all$TRT01P <- ordered(all$TRT01P, c(
+  "Placebo",
+  "Xanomeline Low Dose",
+  "Xanomeline High Dose",
+  "Total"
+))
+df <- all %>%
+  arrange(SITEGR1, SITEID, TRT01P, FLFL) %>%
+  pivot_wider(id_cols = c(SITEGR1, SITEID), names_from = c(TRT01P, FLFL), values_from = c(n), values_fill = list(n = 0)) %>%
+  ungroup()
+
 
 df[nrow(df) + 1,] <- c(
-  "Total",
+  "TOTAL",
   "",
   unname(apply(df[,3:ncol(df)], 2, sum))
 )

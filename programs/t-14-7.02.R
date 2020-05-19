@@ -1,7 +1,6 @@
 ## Table 14-7.02 Summary of Vital Signs Change from Baseline at End of Treatment
 
 library(huxtable)
-library(plyr)
 library(dplyr)
 library(glue)
 library(tidyverse)

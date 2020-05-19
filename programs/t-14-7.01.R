@@ -1,7 +1,6 @@
 ### Table 14-7.01 Summary of Vital Signs at Baseline and End of Treatment
 
 library(huxtable)
-library(plyr)
 library(dplyr)
 library(glue)
 library(tidyverse)

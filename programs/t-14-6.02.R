@@ -1,7 +1,6 @@
 ## Table 14-6.02 Frequency of Normal and Abnormal (Beyond Normal Range) Laboratory Values During Treatment
 
 library(huxtable)
-library(plyr)
 library(dplyr)
 library(glue)
 library(tidyverse)

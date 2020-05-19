@@ -1,7 +1,6 @@
 ### Table 14-7.03 pg 148 Summary of Weight Change from Baseline at End of Treatment
 
 
-library(plyr)
 library(dplyr)
 library(glue)
 library(tidyverse)
@@ -84,21 +83,26 @@ names(bw_stats)[4] <- "VISIT"
 
 ### Weight Change from Baseline table
 # Create table for baseline changes
-bw_bl <- ddply(advs2,
-                "USUBJID",
-                .fun = function(x) {
-                  bl <- x[x$ABLFL %in% "Y", "AVAL"]
-                  w24 <- x[x$W24 %in% "Y", "AVAL"]
-                  eot <- x[x$EOTFL %in% "Y", "AVAL"]
-                  arm <- unique(x$TRTP)
-                  ## Done this way to make dplyr easier
-                  data.frame(
-                    TRTP = arm,
-                    change = c(ifelse(length(w24-bl) == 0, NA, w24-bl),
-                               ifelse(length(eot-bl) == 0, NA, eot-bl)),
-                    VISIT = c("WEEK 24", "End of Trt.")
-                  )
-                }, .inform = TRUE)
+
+
+.blfun = function(x, usubjid = NULL) {
+  x <- x[x$USUBJID == unique(usubjid),]
+  bl <- as.numeric(x[x$ABLFL %in% "Y", "AVAL"])
+  w24 <- as.numeric(x[x$W24 %in% "Y", "AVAL"])
+  eot <- as.numeric(x[x$EOTFL %in% "Y", "AVAL"])
+  arm <- unique(x$TRTP)
+  ## Done this way to make dplyr easier
+  c(ifelse(length(w24-bl) == 0, NA, w24-bl),
+    ifelse(length(eot-bl) == 0, NA, eot-bl))
+}
+bw_bl <- advs2 %>%
+  select(USUBJID, TRTP, ABLFL, W24, EOTFL, AVAL) %>%
+  group_by(USUBJID) %>%
+  summarise(`WEEK 24` = .blfun(., USUBJID)[1],
+         `End of Trt.` = .blfun(., USUBJID)[2],
+         TRTP = unique(TRTP)) %>%
+  select(USUBJID, TRTP, `WEEK 24`, `End of Trt.`) %>%
+  pivot_longer(c(`WEEK 24`, `End of Trt.`), names_to = "VISIT", values_to = "change")
 ## Add ordered factor to order arms
 bw_bl$TRTP <- ordered(bw_bl$TRTP, c("Placebo", "Xanomeline Low Dose", "Xanomeline High Dose"))
 bw_bl$VISIT <- ordered(bw_bl$VISIT,c("WEEK 24", "End of Trt."))
