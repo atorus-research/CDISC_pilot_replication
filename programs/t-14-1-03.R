@@ -175,7 +175,8 @@ ht <- df %>%
   huxtable::set_align(1:nrow(df), 1:2, "center") %>%
   huxtable::set_align(1, 1:14, "center") %>%
   huxtable::set_valign(1, 1:14, "bottom") %>%
-  huxtable::set_col_width(1:ncol(df), value = c(0.1, 0.1, rep(0.07, 12)))
+  huxtable::set_col_width(1:ncol(df), value = c(0.1, 0.1, rep(0.07, 12))) %>%
+  huxtable::set_wrap(FALSE)
 
 doc <- rtf_doc(ht, header_rows = 2) %>% titles_and_footnotes_from_df(
   from.file='./data/titles.xlsx',

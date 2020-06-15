@@ -70,7 +70,8 @@ ht <- as_hux(final) %>%
   huxtable::set_bottom_border(1, 1:ncol(final), 1) %>%
   huxtable::set_width(1.1) %>%
   huxtable::set_escape_contents(FALSE) %>%
-  huxtable::set_col_width(c(.4, .15, .15, .15, .15))
+  huxtable::set_col_width(c(.4, .15, .15, .15, .15)) %>%
+  huxtable::set_wrap(TRUE)
 
 # Write into doc object and pull titles/footnotes from excel file
 doc <- rtf_doc(ht) %>% titles_and_footnotes_from_df(

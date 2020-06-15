@@ -127,7 +127,8 @@ headers_4 <- c(" ", headers_3$labels, "p-value [1]")
 names(combinedTable) <- headers_4
 
 ht <- combinedTable %>%
-  huxtable::as_hux(add_colnames=TRUE)
+  huxtable::as_hux(add_colnames=TRUE) %>%
+  huxtable::set_wrap(FALSE)
 
 huxtable::bottom_border(ht)[1, ] <- 1
 huxtable::bold(ht)[1, ] <- TRUE

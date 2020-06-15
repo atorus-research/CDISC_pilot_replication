@@ -161,7 +161,7 @@ headers <- adsl %>%
 ht <- comb2 %>%
   huxtable::as_hux(add_colnames=TRUE)
 
-ht <- pad_row(ht, c(1,1))
+ht <- as_hux(pad_row(as.data.frame(ht), c(1,1)), add_colnames = FALSE)
 ht[1, 3] <- headers[1, "label"]
 ht[1, 5] <- headers[3, "label"]
 ht[1, 7] <- headers[2, "label"]
