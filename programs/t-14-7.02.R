@@ -116,6 +116,7 @@ wrap(ht) <- FALSE
 
 doc <- rtf_doc(ht) %>% titles_and_footnotes_from_df(
   from.file='./data/titles.xlsx',
+  
   reader=example_custom_reader,
   table_number='14-7.02') %>%
   set_font_size(10) %>%

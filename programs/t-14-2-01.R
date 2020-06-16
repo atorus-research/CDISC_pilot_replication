@@ -211,7 +211,7 @@ final <- bind_rows(header_n_v, final) %>%
   select(rowlbl1, rowlbl2, `0`, `54`, `81`, `99`, p)
 
 ## Table build and RTF Output
-ht <- huxtable::as_hux(final)
+ht <- huxtable::as_hux(final, add_colnames = FALSE)
 
 # ht <- as_hux(mtcars, add_colnames = TRUE)
 huxtable::bottom_border(ht)[1, ] <- 1

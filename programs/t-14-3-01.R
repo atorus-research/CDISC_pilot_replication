@@ -40,7 +40,7 @@ final <- bind_rows(column_headers, summary_portion, model_portion) %>%
 ## Create the table
 
 # Make the table
-ht <- as_hux(final) %>%
+ht <- as_hux(final, add_colnames = FALSE) %>%
   huxtable::set_bold(1, 1:ncol(final), TRUE) %>%
   huxtable::set_align(1, 1:ncol(final), 'center') %>%
   huxtable::set_valign(1, 1:ncol(final), 'bottom') %>%

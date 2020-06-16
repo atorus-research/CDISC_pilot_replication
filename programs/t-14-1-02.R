@@ -6,7 +6,6 @@ library(tidyverse)
 library(haven)
 library(assertthat)
 library(pharmaRTF)
-library(tibble)
 
 source('./programs/config.R')
 source('./programs/funcs.R')
@@ -24,7 +23,6 @@ adsl$DCREASCD <- ordered(adsl$DCSREAS, c("Adverse Event",
                                           "I/E Not Met",
                                           "Protocol Violation",
                                           "Sponsor Decision"))
-
 
 #### Completion Status Table
 comp_stat <- adsl %>%
