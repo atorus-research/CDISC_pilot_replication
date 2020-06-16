@@ -1,5 +1,17 @@
 # CDISC Pilot Replication in R
 
+## Updates
+
+We've update this repository to be compatible with Huxtable v5.0.0! Huxtable v5.0.0 had some backwards compatibility breaking changes. All updates within this repository are compatible back to Huxtable v4.7.1. See a full list of changes to Huxtable [here](https://hughjonesd.github.io/whats-new-in-huxtable-5.0.0.html). 
+
+The changes most of interest to a user of this repository are:
+ - The way indexing was handled has changed. You can no longer index columns like `ht[1:5]`. The new syntax is `ht[1:5, ]`. 
+ - Additionally, the `add_columns` argument now changed from a default of `TRUE` instead of `FALSE`. We updated [`config.R`](programs/config.R) to reset the default option to keep the code consistent. You can do this like so:
+
+```
+options(huxtable.add_colnames = FALSE)
+```
+
 ## Introduction
 Welcome to the Atorus CDISC Pilot replication repository! 
 In 2007, the [original pilot project submission package](https://www.cdisc.org/sdtmadam-pilot-project) was finalized and released following a review by FDA Staff, where the CDISC data and metadata contained within the package were evaluated for its suitability in meeting the needs and expectations of medical and statistical reviewers. In 2019, the [PHUSE Test Data Factory]( https://www.phusewiki.org/wiki/index.php?title=WG5_Project_09) took on the goal of replicating the SDTM and ADaM data within the CDISC pilot package to match more modern data standards, bringing the ADaM data up to version 1.1. 
