@@ -112,9 +112,11 @@ ht <- advs4 %>%
   huxtable::set_bottom_border(1, 1:ncol(advs4), 1) %>%
   huxtable::set_width(1.45) %>%
   huxtable::set_col_width(1:ncol(advs4), c(0.2, 0.15, 0.19, 0.03, 0.1, 0.03, 0.06, 0.06, 0.06, 0.06, 0.06))
+wrap(ht) <- FALSE
 
 doc <- rtf_doc(ht) %>% titles_and_footnotes_from_df(
   from.file='./data/titles.xlsx',
+  
   reader=example_custom_reader,
   table_number='14-7.02') %>%
   set_font_size(10) %>%

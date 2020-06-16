@@ -63,14 +63,15 @@ final <- bind_rows(column_headers, body) %>%
   select(rowlbl1, `0`, `54`, `81`, `99`)
 
 # Make the table
-ht <- as_hux(final) %>%
+ht <- as_hux(final, add_colnames = FALSE) %>%
   huxtable::set_bold(1, 1:ncol(final), TRUE) %>%
   huxtable::set_align(1, 1:ncol(final), 'center') %>%
   huxtable::set_valign(1, 1:ncol(final), 'bottom') %>%
   huxtable::set_bottom_border(1, 1:ncol(final), 1) %>%
   huxtable::set_width(1.1) %>%
   huxtable::set_escape_contents(FALSE) %>%
-  huxtable::set_col_width(c(.4, .15, .15, .15, .15))
+  huxtable::set_col_width(c(.4, .15, .15, .15, .15)) %>%
+  huxtable::set_wrap(TRUE)
 
 # Write into doc object and pull titles/footnotes from excel file
 doc <- rtf_doc(ht) %>% titles_and_footnotes_from_df(

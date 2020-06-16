@@ -206,7 +206,7 @@ pad_row <- function(df, r) {
 ht <- final %>%
   as_huxtable(add_colnames = TRUE)
 
-ht <- pad_row(ht, c(1,1))
+ht <- as_hux(pad_row(as.data.frame(ht), c(1,1)), add_colnames = FALSE)
 ht[1, 2] <- headers[1, "label"]
 ht[1, 5] <- headers[3, "label"]
 ht[1, 8] <- headers[2, "label"]

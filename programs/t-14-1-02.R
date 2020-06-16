@@ -6,7 +6,6 @@ library(tidyverse)
 library(haven)
 library(assertthat)
 library(pharmaRTF)
-library(tibble)
 
 source('./programs/config.R')
 source('./programs/funcs.R')
@@ -24,7 +23,6 @@ adsl$DCREASCD <- ordered(adsl$DCSREAS, c("Adverse Event",
                                           "I/E Not Met",
                                           "Protocol Violation",
                                           "Sponsor Decision"))
-
 
 #### Completion Status Table
 comp_stat <- adsl %>%
@@ -127,7 +125,8 @@ headers_4 <- c(" ", headers_3$labels, "p-value [1]")
 names(combinedTable) <- headers_4
 
 ht <- combinedTable %>%
-  huxtable::as_hux(add_colnames=TRUE)
+  huxtable::as_hux(add_colnames=TRUE) %>%
+  huxtable::set_wrap(FALSE)
 
 huxtable::bottom_border(ht)[1, ] <- 1
 huxtable::bold(ht)[1, ] <- TRUE
