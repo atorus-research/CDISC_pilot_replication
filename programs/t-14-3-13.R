@@ -84,6 +84,7 @@ counts <- cbic %>%
     ord, by=c('AVISITN', 'AVISIT', 'AVALC')
   ) %>%
   # Fill the 0s
+  ## There is a bug here that causes vctrs to fail.
   replace_na(list(`0`=' 0       ', `54` = ' 0       ', `81`=' 0       ')) %>%
   # Clean up the rows that should be blank
   mutate(
