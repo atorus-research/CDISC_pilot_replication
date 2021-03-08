@@ -14,7 +14,7 @@ options(huxtable.add_colnames = FALSE)
 
 ## Introduction
 Welcome to the Atorus CDISC Pilot replication repository! 
-In 2007, the [original pilot project submission package](https://www.cdisc.org/sdtmadam-pilot-project) was finalized and released following a review by FDA Staff, where the CDISC data and metadata contained within the package were evaluated for its suitability in meeting the needs and expectations of medical and statistical reviewers. In 2019, the [PHUSE Test Data Factory]( https://www.phusewiki.org/wiki/index.php?title=WG5_Project_09) took on the goal of replicating the SDTM and ADaM data within the CDISC pilot package to match more modern data standards, bringing the ADaM data up to version 1.1. 
+In 2007, the [original pilot project submission package](https://bitbucket.cdisc.org/projects/CED/repos/sdtm-adam-pilot-project/browse) was finalized and released following a review by FDA Staff, where the CDISC data and metadata contained within the package were evaluated for its suitability in meeting the needs and expectations of medical and statistical reviewers. In 2019, the [PHUSE Test Data Factory](https://advance.phuse.global/display/WEL/Test+Dataset+Factory) took on the goal of replicating the SDTM and ADaM data within the CDISC pilot package to match more modern data standards, bringing the ADaM data up to version 1.1. 
 Atorus Research has now regenerated the table outputs within the CDISC Pilot Project using the PHUSE Test Data Factory project’s data and the R Programming language. Our motivation behind this project was to:
 -	Demonstrate that we were able to obtain matching outputs using R
 -	Provide open source code to the public to demonstrate how we were able to do this
