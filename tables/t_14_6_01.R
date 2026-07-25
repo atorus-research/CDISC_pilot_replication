@@ -100,6 +100,9 @@ final <- bind_rows(
   assemble("HEMATOLOGY", section_wide(hema, hema_p), hema_p)
 ) |> select(VISIT, all_of(COLS))
 final[] <- lapply(final, function(x) { x[is.na(x)] <- ""; as.character(x) })
+# drop trailing all-blank spacer rows (assemble() ends each param with a blank row; the last
+# one spilled a header-only empty page 18). Keep interior spacers.
+final <- final[seq_len(max(which(rowSums(final != "") > 0))), , drop = FALSE]
 
 # rows whose label spans the full width (section + param headers): unindented, no values
 merge_rows <- which(final$VISIT != "" & !startsWith(final$VISIT, "  "))
