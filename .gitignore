@@ -4,8 +4,7 @@
 .Ruserdata
 /data
 
-# next-gen rebuild: generated build artifacts & scratch (regenerable)
-/outputs
+# next-gen rebuild: scratch/regenerable (the rendered .docx outputs ARE committed)
 verify/_artifacts/
 **/__pycache__/
 *.pyc
