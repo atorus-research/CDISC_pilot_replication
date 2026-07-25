@@ -105,10 +105,12 @@ heme   <- with_p(count_wide(hem_d),  hem_d)
 COLS <- c(paste0("res", 1:9), "PVAL")
 row9 <- function(stub = "") tibble(STUB = stub, !!!setNames(rep(list(""), 10), COLS))
 
-# Legacy leaves 5 blank rows between the CHEMISTRY and HEMATOLOGY sections.
+# One blank row between CHEMISTRY and HEMATOLOGY (matches the leading blank). The legacy's 5-row
+# gap orphaned below the header at the top of page 2 in our denser pagination (option A: don't
+# clone that cosmetic quirk); a single separator renders cleanly whether or not it hits a break.
 final <- bind_rows(
   row9(""), row9("CHEMISTRY"), row9("----------"), chem,
-  row9(""), row9(""), row9(""), row9(""), row9(""),
+  row9(""),
   row9("HEMATOLOGY"), row9("----------"), heme)
 final[] <- lapply(final, function(x) { x[is.na(x)] <- ""; attr(x, "label") <- NULL; as.character(x) })
 
