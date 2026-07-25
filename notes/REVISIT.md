@@ -72,6 +72,26 @@ clinify PR #96 (v0.4.0, branch gh_issue_95; merged to `development`) added
 `notes/feature-requests/clinify-regulatory-fidelity.md` item 2 (our `R/titles.R`). Not filed (not in
 the batch I filed); offer to file if the maintainer wants it.
 
+## Pagination / page-break layout review (2026-07-25)
+Reviewed all 11 multi-page tables (fan-out workflow) for defects the pagination-agnostic content
+check misses. 14-6.03 came back clean (validated the earlier fix + the review). Three classes found:
+- **① orphaned spacer gap** — 14-6.03 FIXED (5-blank excess → 1). Others (14-7.01/.02/.04, 14-5.01)
+  are single-blank spacer ORPHANS (already 1 row) that land at a page top — no "reduce-but-keep" fix
+  like 14-6.03; only remove-the-spacer-entirely (tested on 14-7.02: content-identical, gap gone, but
+  DENSER — diverges from the reference's block spacing) or clinify page-control. NOT applied (more
+  aggressive than the 14-6.03 precedent; the vitals blocks are still readable via their Position/
+  Measure labels, but AE/CM spacers are load-bearing group separators). Bundle with class ③.
+- **② spurious empty trailing page** — 14-6.01 page 18 (header+footnote, no data) FIXED: strip
+  trailing all-blank rows (18→17 pages, content unchanged). Same class as 14-2.01's dropped page-4.
+- **③ split-block / header-widow** — DEFERRED (user's call): a param/SOC/shift block splits across a
+  page with continuation rows or the section/param label stranded unlabeled. Pervasive in 14-6.04
+  (~15 transitions), plus 14-6.01 (PROTEIN/ERY-MCH headers), 14-5.01 (INVESTIGATIONS SOC + a torn
+  wrapped PT label), 14-6.02 (HEMATOLOGY), 14-6.05, 14-7.x, 14-3.13. This is fundamental table
+  pagination (rows break where they fall; group labels don't repeat) — needs a clinify page-control
+  feature (keep-with-next / repeat-group-label / suppress-top-of-page-blank; cf. clin_group_by /
+  clin_auto_page, issues #90/#91) and LIKELY the legacy RTFs paginate the same way (so it may be
+  reference-consistent, not a divergence). Full per-table findings: workflow wf_28a53ca3-1e5 journal.
+
 ## Internal (our own code / harness — no upstream dependency)
 
 ### R/efficacy.R — generalize build_efficacy_table  [DONE 2026-07-25]
