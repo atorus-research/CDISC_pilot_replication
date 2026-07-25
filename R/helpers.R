@@ -1,15 +1,13 @@
-# R/helpers.R
-# -----------------------------------------------------------------------------
-# Minimal shared helpers. Kept intentionally small: summarization/formatting is
-# tplyr2's job. These cover only the pieces tplyr2 does not own — namely
-# formatting externally-fit MODEL output (LS-means diffs, CIs, p-values) that is
-# row-bound beneath a tplyr2 build, and building wrapped (N=) column labels.
-# -----------------------------------------------------------------------------
+# R/helpers.R — shared formatters for row-bound model output and (N=) column labels
 
 library(stringr)
 
-# Fixed-width monospace number formatter, byte-for-byte compatible with the
-# reference programs' num_fmt() so row-bound model strings align identically.
+#' Format a number as a fixed-width, right-padded string
+#' @param var Numeric value to format
+#' @param digits Number of decimal places
+#' @param size Total field width, right-padded with spaces
+#' @param int_len Minimum width of the integer part
+#' @return Character scalar, "" when `var` is NA
 num_fmt <- function(var, digits = 0, size = 10, int_len = 3) {
   if (is.na(var)) return("")
   nsmall <- digits
@@ -21,49 +19,63 @@ num_fmt <- function(var, digits = 0, size = 10, int_len = 3) {
 }
 num_fmt <- Vectorize(num_fmt)
 
-# Wrapped "<Arm> (N=n)" column label, matching get_header_n()'s str_wrap(width=10).
-# Returns a single string with "\n" line breaks (clinify renders \n as a break).
+#' Build a wrapped "<Arm> (N=n)" column label
+#' @param name Arm name
+#' @param n Population count
+#' @param width Wrap width in characters
+#' @return Character scalar with "\n" line breaks
 arm_label <- function(name, n, width = 10) {
   stringr::str_wrap(sprintf("%s (N=%s)", name, n), width = width)
 }
 
-# Append n blank rows to a data.frame (reference pad_row()).
+#' Append blank rows to a data frame
+#' @param .data Data frame to pad
+#' @param n Number of blank rows to append
+#' @return `.data` with `n` blank rows appended
 pad_row <- function(.data, n = 1) {
   .data[(nrow(.data) + 1):(nrow(.data) + n), ] <- ""
   .data
 }
 
-# Prepend a single blank row matching `df`'s columns. Reproduces the reference's
-# gap between the header rule and the first body row (a house-style spacer).
+#' Prepend a single blank row matching a data frame's columns
+#' @param df Data frame to prepend a spacer row to
+#' @return `df` with one leading blank row (house-style header/body gap)
 top_spacer <- function(df) {
   blank <- df[1, , drop = FALSE]
   blank[] <- ""
   dplyr::bind_rows(blank, df)
 }
 
-# One-way ANOVA p-value vs treatment, formatted like the reference (width 10, 4dp).
+#' Compute a one-way ANOVA p-value versus treatment, formatted to a fixed width
+#' @param data Data frame
+#' @param var Response variable name
+#' @param trt Treatment variable name
+#' @return Character scalar (width 10, 4 decimals)
 aov_p_str <- function(data, var, trt = "TRT01P") {
   f <- stats::as.formula(paste(var, "~", trt))
   p <- summary(stats::aov(f, data, na.action = stats::na.omit))[[1]][["Pr(>F)"]][1]
   format(round(p, 4), width = 10, nsmall = 4)
 }
 
-# Fisher's exact p-value, reference format ("<.0001" floor; width controls the
-# right-justified field for non-floored values).
+#' Compute a Fisher's exact p-value, formatted with a "<.0001" floor
+#' @param res Response factor values
+#' @param cats Grouping factor values
+#' @param width Field width for non-floored values
+#' @return Character scalar
 fish_p_str <- function(res, cats, width = 10) {
   p <- suppressWarnings(fisher.test(factor(res), factor(cats))$p.value)
   if (round(p, 4) == 0) return("<.0001")
   format(round(p, 4), width = width, nsmall = 4)
 }
 
-# Pearson chi-square p-value vs treatment, reference format ("<.0001" floor).
+#' Compute a Pearson chi-square p-value versus treatment, formatted with a "<.0001" floor
+#' @param data Data frame
+#' @param var Response variable name
+#' @param trt Treatment variable name
+#' @return Character scalar
 chi_p_str <- function(data, var, trt = "TRT01P") {
   p <- suppressWarnings(
     stats::chisq.test(factor(data[[var]]), factor(data[[trt]]))$p.value)
   if (round(p, 4) == 0) return("<.0001")
   format(round(p, 4), width = 10, nsmall = 4)
 }
-
-# NOTE: the former fix_count_quirks() (regex post-processing for "<1%" and bare-0
-# cells) was removed once tplyr2 PR #15 added native `pct_lt` / `zero_count_display`
-# layer settings (tplyr2 issues #13/#14). Those are used directly in the tables now.

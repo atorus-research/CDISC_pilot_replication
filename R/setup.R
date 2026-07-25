@@ -1,13 +1,4 @@
-# R/setup.R
-# -----------------------------------------------------------------------------
-# Central entry point for the next-gen CDISC Pilot build.
-# Each table program starts with: source(here::here("R", "setup.R"))
-# (or source("R/setup.R") when run from the project root).
-#
-# Loads the core stack (tplyr2, clinify, tidyverse, haven), applies the
-# project-level tplyr2 options and clinify house style, and exposes the
-# titles.xlsx reader.
-# -----------------------------------------------------------------------------
+# R/setup.R — sourced by every table program; loads the stack and applies project defaults
 
 suppressPackageStartupMessages({
   library(tidyverse)
@@ -21,7 +12,7 @@ suppressPackageStartupMessages({
 # Resolve the project root regardless of the caller's working directory.
 .PROJ <- tryCatch(
   {
-    # rprojroot-free: walk up until we find the .Rproj / renv.lock
+    # walk up until we find renv.lock
     d <- getwd()
     while (!file.exists(file.path(d, "renv.lock")) && dirname(d) != d) d <- dirname(d)
     d
@@ -39,13 +30,13 @@ source(file.path(.PROJ, "R", "tplyr2_defaults.R"))
 source(file.path(.PROJ, "R", "clinify_defaults.R"))
 source(file.path(.PROJ, "R", "titles.R"))
 
-# Small helper: read an ADaM xpt by name from data/
+#' Read an ADaM dataset from `data/` by name
+#'
+#' @param name Dataset name without extension (e.g. `"adsl"`).
+#' @return A tibble read from `data/<name>.xpt`.
 read_adam <- function(name) {
   haven::read_xpt(file.path(DATA_DIR, paste0(name, ".xpt")))
 }
 
-# The reference RTFs baked a per-table timestamp into the footer. For the
-# fidelity comparison we reproduce each table's own timestamp verbatim (extracted
-# from its reference RTF); in production this would be Sys.time(). NULL means
-# "look it up per table" (see add_titles_footnotes / ref_timestamp in R/titles.R).
+# Footer timestamp: NULL -> each table reproduces its own reference-RTF timestamp (fidelity mode).
 FIDELITY_DATE <- NULL

@@ -1,37 +1,13 @@
-# R/clinify_defaults.R
-# -----------------------------------------------------------------------------
-# Project-level clinify house style for the CDISC Pilot next-gen outputs.
-#
-# clinify exposes its look through six session options (see ?clinify::clinify_defaults).
-# Sourcing this file overrides them to match the pilot's visual spec, verified
-# against the original RTFs:
-#   * US-Letter LANDSCAPE, 1" margins all sides, 0.5" header/footer band
-#   * Courier New, 10pt everywhere (clinify ships 9pt)
-#   * Titles: bold + italic, no borders
-#   * Footnotes: italic (not bold), NO rule above them
-#   * Table: header carries a single 1pt bottom rule under the last header row;
-#           no top rule, no inter-level rule; body has no borders
-#   * layout = "fixed" so column widths are honoured literally (monospace align)
-#
-# Set once per session (see R/setup.R). Because clinify reads these options at
-# render time, every write_clindoc()/print() thereafter inherits the style.
-# -----------------------------------------------------------------------------
+# R/clinify_defaults.R — project clinify house style (fonts, rules, page geometry) for the pilot outputs
 
 library(flextable)
 library(officer)
 
-# Reference body row pitch (~15.35pt), measured from the original RTFs rendered
-# through LibreOffice. Used to force an exact row height (see cdisc_table_default).
-# House-standard body row pitch for the whole suite: one deliberate, compact
-# single-line pitch for 10pt Courier (~15.4pt / 0.213in). Applied consistently
-# to every table (the legacy outputs used inconsistent per-table heights; we do
-# not reproduce that). A `getOption("cdisc.body_row_in")` escape hatch exists but
-# is intentionally unused.
-CDISC_ROW_IN   <- 15.35 / 72
-# Title/footnote single-line pitch (~11.4pt).
-CDISC_TITLE_IN <- 11.4 / 72
-
-# 1) Page geometry: prop_section OBJECT (note: stored evaluated, not as a fn) ---
+#' Build the page-geometry section for the pilot outputs
+#'
+#' US-Letter landscape, 1in margins, 0.5in header/footer band.
+#'
+#' @return An evaluated officer `prop_section` (stored as an object, not a function).
 cdisc_docx_default <- function() {
   officer::prop_section(
     page_size    = officer::page_size(width = 8.5, height = 11, orient = "landscape"),
@@ -41,45 +17,41 @@ cdisc_docx_default <- function() {
   )
 }
 
+#' Create a solid black border of the given width
+#'
+#' @param width Border width in points.
+#' @return An officer `fp_border`.
 .cdisc_rule <- function(width = 1) officer::fp_border(color = "black", width = width, style = "solid")
 
-# 2) Table body + header: Courier New 10, header bottom rule only -------------
+#' Style the table body and header (Courier New 10, header bottom rule)
+#'
+#' @param x A flextable.
+#' @param ... Unused; present for the clinify styler interface.
+#' @return The styled flextable.
 cdisc_table_default <- function(x, ...) {
   x <- flextable::border_remove(x)
-  # single 1pt rule under the bottom-most header row (matches \clbrdrb\brdrw20)
+  # single 1pt rule under the bottom-most header row (matches the reference RTF border)
   x <- flextable::hline_bottom(x, part = "header", border = .cdisc_rule(1))
   x <- flextable::font(x, part = "all", fontname = "Courier New")
   x <- flextable::fontsize(x, part = "all", size = 10)
-  # NOTE: headers are NOT bolded. Although 22/30 legacy programs call set_bold, the
-  # RENDERED references are mostly regular weight (a bold house default measurably WORSENED
-  # the pixel-gated single-page tables 14-1.01/14-3.01/14-1.03, and its only clear
-  # beneficiary, 14-6.01, is content-verified so header weight is invisible to its gate).
-  # Non-bold is the consistent option-A choice; 14-6.01's visibly-bold reference is the
-  # documented cosmetic exception (see notes/divergences.md).
-  # Match the reference cells' 4pt (80 twip) horizontal padding. The reference
-  # relied on \clNoWrap (which LibreOffice ignores), so tight padding is what
-  # actually lets fixed-width strings like "21.0 (  5;61)" fit without wrapping.
+  # header labels are deliberately not bolded (matches the rendered references)
+  # tight horizontal padding keeps fixed-width strings from wrapping
   x <- flextable::padding(x, padding.left = 2, padding.right = 2, part = "all")
-  # Tight rows to match the reference (top/bottom padding 0, single line spacing).
-  # clinify's as_clintable() sets header padding.top/bottom = 9; trim it so the
-  # header block matches the reference's compact buffer + label rows.
+  # compact rows: single line spacing, no top/bottom padding in the body
   x <- flextable::line_spacing(x, space = 1, part = "all")
   x <- flextable::padding(x, padding.top = 0, padding.bottom = 0, part = "body")
-  # Header buffer: ~15pt of space above the column labels (reference's set_column_header_buffer),
-  # applied to every header row via flextable padding. NOT via clinify's clin_header_pad(): #102
-  # made above/below uniform per-row (good), but two tables need NON-uniform per-row header padding
-  # for fidelity -- 14-1.03 (34pt on row 2, spanner->label gap) and 14-3.10 (21pt on row 1, to align
-  # the header rule at the reference y) -- and clin_header_pad's config precedence clobbers their
-  # per-table flextable::padding(i=). So we keep the styler padding, which composes with those. (#97)
+  # ~18pt of buffer above the column labels, 4pt below
   x <- flextable::padding(x, padding.top = 18, padding.bottom = 4, part = "header")
-  # House row pitch (body/title/footnote) is set once, centrally, via clinify's
-  # clin_row_height() in add_titles_footnotes() (clinify #97) - it replaces the former
-  # per-styler hrule("atleast") + height_all() and reaches the title/footnote blocks too.
+  # row pitch (body/title/footnote) is set centrally in add_titles_footnotes()
   x <- flextable::set_table_properties(x, layout = "fixed")
   x
 }
 
-# 3) Titles: Courier New 10, BOLD + ITALIC, no borders, keep page-number fields
+#' Style the title block (Courier New 10, bold + italic, page-number fields)
+#'
+#' @param x A flextable.
+#' @param ... Unused; present for the clinify styler interface.
+#' @return The styled flextable with `{PAGE}`/`{NUMPAGES}` replaced by Word fields.
 cdisc_titles_default <- function(x, ...) {
   x <- flextable::border_remove(x)
   x <- flextable::font(x, part = "all", fontname = "Courier New")
@@ -90,14 +62,17 @@ cdisc_titles_default <- function(x, ...) {
   x <- flextable::line_spacing(x, space = 1, part = "all")
   x <- flextable::padding(x, padding.top = 0, padding.bottom = 0,
                           padding.left = 0, padding.right = 0, part = "all")
-  # Title pitch (~11.4pt) now comes from clin_row_height(title=) (see add_titles_footnotes).
   x <- flextable::set_table_properties(x, layout = "fixed")
   clinify::clin_replace_pagenums(x)   # {PAGE}/{NUMPAGES} -> Word fields
 }
 
-# 4) Footnotes: Courier New 10, ITALIC only, NO top rule ----------------------
+#' Style the footnote block (Courier New 10, italic, no top rule)
+#'
+#' @param x A flextable.
+#' @param ... Unused; present for the clinify styler interface.
+#' @return The styled flextable with `{PAGE}`/`{NUMPAGES}` replaced by Word fields.
 cdisc_footnotes_default <- function(x, ...) {
-  x <- flextable::border_remove(x)            # (drops clinify's default top rule)
+  x <- flextable::border_remove(x)            # drops clinify's default top rule
   x <- flextable::font(x, part = "all", fontname = "Courier New")
   x <- flextable::fontsize(x, part = "all", size = 10)
   x <- flextable::italic(x, part = "all")
@@ -105,22 +80,33 @@ cdisc_footnotes_default <- function(x, ...) {
   x <- flextable::line_spacing(x, space = 1, part = "all")
   x <- flextable::padding(x, padding.top = 0, padding.bottom = 0,
                           padding.left = 0, padding.right = 0, part = "all")
-  # Footnote pitch (~11.4pt) now comes from clin_row_height(footnote=) (see add_titles_footnotes).
   x <- flextable::set_table_properties(x, layout = "fixed")
   clinify::clin_replace_pagenums(x)
 }
 
-# 5) Captions & 6) group labels: keep Courier New 10 --------------------------
+#' Style the caption block (Courier New 10)
+#'
+#' @param x A flextable.
+#' @param ... Unused; present for the clinify styler interface.
+#' @return The styled flextable.
 cdisc_caption_default <- function(x, ...) {
   x <- flextable::font(x, part = "all", fontname = "Courier New")
   flextable::fontsize(x, part = "all", size = 10)
 }
+
+#' Style the group-label block (Courier New 10)
+#'
+#' @param x A flextable.
+#' @param ... Unused; present for the clinify styler interface.
+#' @return The styled flextable.
 cdisc_grouplabel_default <- function(x, ...) {
   x <- flextable::font(x, part = "all", fontname = "Courier New")
   flextable::fontsize(x, part = "all", size = 10)
 }
 
-# Apply everything ------------------------------------------------------------
+#' Register the CDISC house-style stylers as clinify session options
+#'
+#' @return `TRUE`, invisibly.
 apply_cdisc_clinify_defaults <- function() {
   options(
     clinify_docx_default       = cdisc_docx_default(),   # evaluated object

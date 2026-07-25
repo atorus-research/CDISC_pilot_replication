@@ -1,6 +1,7 @@
-# tables/t_14_1_01.R
-# Table 14-1.01 — Summary of Populations (All Subjects)
-# For each population flag, n(%) of subjects with the flag = "Y", by arm + Total.
+# t_14_1_01.R
+# Table 14-1.01: Summary of Populations   (Population: All Subjects)
+# Produces: outputs/14-1.01.docx
+# Source: ADSL; per population flag, n(%) with flag = "Y" by arm + Total via tplyr2 group_count.
 source("R/setup.R"); source("R/helpers.R")
 
 TABLE <- "14-1.01"; SOURCE <- "programs/t-14-1-01.R"
@@ -12,7 +13,10 @@ adslT <- bind_rows(adsl0, mutate(adsl0, TRT01P = "Total")) |>
          COMPL  = if_else(DCDECOD == "COMPLETED", "Y", "N"))
 Ns <- adsl0 |> count(TRT01P) |> deframe(); Ntot <- sum(Ns)
 
-# n(%) of flag == "Y", one display row (res1..res4 factor-ordered Placebo/Low/High/Total)
+#' Build one display row of n(%) for a population flag
+#' @param flag Name of the population flag variable, counted where its value is "Y"
+#' @param label Row label shown in the stub
+#' @return One-row tibble with rowlbl1 and res1..res4 (Placebo/Low/High/Total)
 pop_row <- function(flag, label) {
   s <- tplyr_spec(cols = "TRT01P",
                   layers = tplyr_layers(group_count(flag,

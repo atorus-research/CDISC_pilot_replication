@@ -1,26 +1,17 @@
-# R/efficacy.R
-# -----------------------------------------------------------------------------
-# Reusable builder for the ANCOVA efficacy tables (14-3.01 .. 14-3.09, ex .07).
-#
-# Two endpoint shapes:
-#   endpoint = "ADAS"  -> change-from-baseline (CHG); descriptive blocks
-#                         Baseline / Week N / Change; ANCOVA model includes the
-#                         baseline value as a covariate.
-#   endpoint = "CIBIC" -> single impression score (AVAL) at Week N; one
-#                         descriptive block; ANCOVA model has NO baseline covariate.
-#
-# Descriptive block via tplyr2 group_desc; the ANCOVA (dose-response + pairwise
-# LS-means) is fit once with lm + car + emmeans and row-bound beneath, formatted
-# byte-for-byte via num_fmt (matches the reference display).
-# -----------------------------------------------------------------------------
+# R/efficacy.R — build the ANCOVA efficacy tables (ADAS change-from-baseline; CIBIC score)
 
+# Descriptive-statistic format strings shared by the descriptive blocks.
 .eff_fs <- list(
   "  n"              = f_str("xx", "n"),
   "  Mean (SD)"      = f_str("xx.x (xx.xx)", "mean", "sd"),
   "  Median (Range)" = f_str("xx.x (xxx;xx)", "median", "min", "max")
 )
 
-# ANCOVA model block -> rows (row_label, res1/res2/res3) matching the reference.
+#' Fit the ANCOVA model and format its result rows for the table body
+#' @param dat Analysis data for one endpoint, filtered to the analysis population
+#' @param week Analysis visit (AVISITN) to model
+#' @param use_base Include the baseline value as a covariate
+#' @return A tibble of formatted rows (row_label, res1, res2, res3)
 ancova_block <- function(dat, week, use_base) {
   op <- options(contrasts = c("contr.sum", "contr.poly")); on.exit(options(op))
   md <- dat |>
@@ -46,7 +37,13 @@ ancova_block <- function(dat, week, use_base) {
                                    num_fmt(SE,       int_len = 1, digits = 2, size = 4)),
       ci      = sprintf("(%s;%s)", num_fmt(lower.CL, int_len = 2, digits = 1, size = 4),
                                    num_fmt(upper.CL, int_len = 1, digits = 1, size = 3)))
+  #' Pull one formatted cell for a pairwise contrast
+  #' @param cn Contrast name (e.g. "Xan_Hi - Pbo")
+  #' @param col Column to extract ("p", "diff_se", or "ci")
+  #' @return Character scalar
   g <- function(cn, col) pwc[[col]][pwc$contrast == cn]
+  #' Build an empty ANCOVA spacer row
+  #' @return A one-row tibble of blank cells
   blank <- function() tibble(row_label = "", res1 = "", res2 = "", res3 = "")
   bind_rows(
     blank(),
@@ -64,14 +61,20 @@ ancova_block <- function(dat, week, use_base) {
   )
 }
 
-# Optional parameters (all default to the original ADAS/CIBIC behavior):
-#   extra_filter : an unquoted expression AND-ed onto the base filter after
-#                  EFFFL/ITTFL/PARAMCD (e.g. the 14-3.07 completers subset).
-#   anl01        : apply the ANL01FL=="Y" filter (FALSE for 14-3.12 / adnpix).
-#   derive_chg   : compute CHG = AVAL - BASE when the dataset lacks it (14-3.12).
-#   blocks       : override the descriptive-block spec, a list of
-#                  list(var=, label=, visit=); default is the endpoint's shape.
-#   use_base     : ANCOVA baseline covariate; default (endpoint=="ADAS").
+#' Build and write an ANCOVA efficacy table
+#' @param table Table id (e.g. "14-3.01")
+#' @param source_path Source program path shown in the footer
+#' @param dataset ADaM dataset name to read
+#' @param paramcd PARAMCD value to subset to
+#' @param week Analysis visit (AVISITN) and label week
+#' @param endpoint Endpoint shape: "ADAS" (change-from-baseline) or "CIBIC" (score)
+#' @param sex Optional SEX subset
+#' @param extra_filter Unquoted expression AND-ed onto the base EFFFL/ITTFL/PARAMCD filter
+#' @param anl01 Apply the ANL01FL == "Y" filter
+#' @param derive_chg Compute CHG = AVAL - BASE when the dataset lacks it
+#' @param blocks Optional descriptive-block spec: list of list(var=, label=, visit=)
+#' @param use_base Include the baseline covariate in the ANCOVA; defaults to endpoint == "ADAS"
+#' @return The assembled table data frame (invisibly); writes the .docx as a side effect
 build_efficacy_table <- function(table, source_path, dataset, paramcd, week,
                                  endpoint = c("ADAS", "CIBIC"), sex = NULL,
                                  extra_filter = NULL, anl01 = TRUE,
@@ -88,9 +91,11 @@ build_efficacy_table <- function(table, source_path, dataset, paramcd, week,
   hn <- dat |> distinct(USUBJID, TRTP) |> count(TRTP) |> deframe()
 
   wk_lab <- paste("Week", week)
-  # rlang::inject substitutes the visit value INTO the layer `where` before
-  # tplyr2 captures it (layer where is a bare expression, so a plain `visit`
-  # variable would not resolve).
+  # rlang::inject substitutes the visit value into the layer `where` before tplyr2
+  # captures it: `where` is a bare expression, so a plain `visit` variable would not resolve.
+  #' Build a descriptive-block group_desc layer from a block spec
+  #' @param bk Block spec: list(var=, label=, visit=)
+  #' @return A tplyr2 group_desc layer
   mk_desc <- function(bk) rlang::inject(
     group_desc(bk$var, by = label(bk$label), where = AVISITN == !!bk$visit,
                settings = layer_settings(format_strings = .eff_fs)))

@@ -1,12 +1,7 @@
-# tables/t_14_2_01.R
-# Table 14-2.01 — Summary of Demographic and Baseline Characteristics (ITT)
-#
-# Continuous characteristics: tplyr2 group_desc (n / Mean / SD / Median / Min / Max).
-# Categorical characteristics: tplyr2 group_count (n (%)) with reference display
-#   quirks (<1%, bare 0) reproduced. Total column via a bound "Total" arm.
-# p-value column: one-way ANOVA (continuous) / Pearson chi-square (categorical),
-#   computed on the 3 real arms and placed on the appropriate row.
-# -----------------------------------------------------------------------------
+# t_14_2_01.R
+# Table 14-2.01: Summary of Demographic and Baseline Characteristics   (Population: Intent-to-Treat)
+# Produces: outputs/14-2.01.docx
+# Source: ADSL (ITTFL == "Y"); tplyr2 group_desc/group_count with ANOVA and chi-square p-values.
 source("R/setup.R")
 source("R/helpers.R")
 
@@ -15,7 +10,7 @@ SOURCE <- "programs/t-14-2-01.R"
 
 ARMS <- c("Placebo", "Xanomeline Low Dose", "Xanomeline High Dose", "Total")
 
-# ---- Data + display derivations (match reference) ---------------------------
+# ---- Data + display derivations ---------------------------------------------
 adsl0 <- read_adam("adsl") |>
   filter(ITTFL == "Y") |>
   mutate(
@@ -51,12 +46,10 @@ desc_fs <- list(
   "Max"    = f_str("xxx.x",  "max")
 )
 
-# Reorder tplyr2 result columns into ARMS order by their (N=) label. tplyr2 count
-# layers order res columns alphabetically by the cols value (ignoring factor
-# levels), which differs from desc layers - so never assume res1==first arm.
+#' Reshape a tplyr2 build into rowlbl2 plus res columns in ARMS order
+#' @param b A tplyr2 build result
+#' @return Tibble with rowlbl2 and res1..resN, ordered Placebo/Low/High/Total
 reslist <- function(b) {
-  # tplyr2 (>= PR #15) orders count/desc/shift result columns by the cols factor
-  # levels, so res1..resN are already in ARMS order (Placebo/Low/High/Total).
   b <- b[order(b$ord_layer_1), , drop = FALSE]
   rescols <- grep("^res", names(b), value = TRUE)
   out <- tibble(rowlbl2 = as.character(b$rowlabel1))
@@ -64,6 +57,9 @@ reslist <- function(b) {
   out
 }
 
+#' Build a descriptive-statistics block (n/Mean/SD/Median/Min/Max) for a variable
+#' @param var Name of the continuous variable to summarize
+#' @return Padded tibble with rowlbl2 and res1..res4 columns
 desc_block <- function(var) {
   s <- tplyr_spec(cols = "TRT01P",
                   layers = tplyr_layers(group_desc(var,
@@ -71,11 +67,13 @@ desc_block <- function(var) {
   pad_row(reslist(tplyr_build(s, adslT)))
 }
 
+#' Build an n(%) count block for a categorical variable
+#' @param var Name of the categorical variable to count
+#' @param incl_n Whether to prepend an "n" row of non-missing counts per arm
+#' @return Padded tibble with rowlbl2 and res1..res4 columns
 count_block <- function(var, incl_n = FALSE) {
-  # Native tplyr2 display conventions (PR #15): pct_lt=1 renders sub-1% as "<1",
-  # zero_count_display="count_only" renders zero-count cells as a bare count.
-  # Category ROWS ordered by the target's factor levels via order_count_method
-  # ="byfactor" (tplyr2 PR #17 fixed byfactor to honor factor levels).
+  # pct_lt = 1 shows sub-1% as "<1"; zero_count_display = "count_only" shows zero cells as a bare count;
+  # order_count_method = "byfactor" orders category rows by the target's factor levels.
   s <- tplyr_spec(cols = "TRT01P",
                   layers = tplyr_layers(group_count(var,
                     settings = layer_settings(
@@ -94,7 +92,11 @@ count_block <- function(var, incl_n = FALSE) {
   pad_row(blk)
 }
 
-# stamp rowlbl1 (first row) and p-values (by row index) onto a block
+#' Stamp the row-1 label and p-values onto a block, then select display columns
+#' @param block Block tibble with rowlbl2 and res columns
+#' @param name Row label for the first row (rowlbl1)
+#' @param p_at Named list mapping 1-based row index (as string) to p-value string
+#' @return Tibble with columns rowlbl1, rowlbl2, res1..res4, pcol
 stamp <- function(block, name, p_at = list()) {
   block$rowlbl1 <- ""; block$rowlbl1[1] <- name
   block$pcol <- ""

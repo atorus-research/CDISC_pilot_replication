@@ -1,20 +1,17 @@
-# tables/t_14_6_02.R
-# Table 14-6.02 — Frequency of Normal and Abnormal (Beyond Normal Range)
-#                 Laboratory Values During Treatment (Safety)
-# Record source: ONE analysis record per subject per PARAM (ANL01FL=="Y", on-
-# treatment AVISITN!=99). Counts are therefore SUBJECT counts by treatment-range
-# category (Low/Normal/High). Reference-range is LBNRIND (recoded LOW/NORMAL/HIGH
-# -> L/N/H). Layout: PARAM down the stub; 9 value columns = arm (Placebo/Xan Low/
-# Xan High) x category (Low/Normal/High); a Fisher's-exact p-value column per PARAM.
-# Percentages are column-wise within each (PARAM, arm): n / (subjects with a non-
-# missing assessment in that arm) -> tplyr2 group_count with cols=c(TRTP,RIND),
-# target=PARAM, denoms_by=c(PARAM,TRTP). Fisher p is the 3x3 (arm x category) test.
-source("R/setup.R"); source("R/helpers.R")
+# t_14_6_02.R
+# Table 14-6.02: Frequency of Normal and Abnormal (Beyond Normal Range) Laboratory
+#                Values During Treatment   (Population: Safety)
+# Produces: outputs/14-6.02.docx
+# Source: adlbc/adlbh (one on-treatment analysis record per subject per PARAM, adsl for
+#   arm Ns); tplyr2 group_count subject n(%) by arm x LBNRIND category, Fisher's-exact p per PARAM.
+source("R/setup.R")
+source("R/helpers.R")
 
-TABLE <- "14-6.02"; SOURCE <- "programs/t-14-6.02.R"
+TABLE <- "14-6.02"
+SOURCE <- "programs/t-14-6.02.R"
 ARMS  <- c("Placebo", "Xanomeline Low Dose", "Xanomeline High Dose")
 
-# PARAM recode (long -> short) and display order, verbatim from the legacy program.
+# PARAM recode (long -> short) and display order.
 CHEM_RC <- c(
   "Alanine Aminotransferase (U/L)"="ALANINE AMINOTRANSFERASE","Albumin (g/L)"="ALBUMIN",
   "Alkaline Phosphatase (U/L)"="ALKALINE PHOSPHATASE","Aspartate Aminotransferase (U/L)"="ASPARTATE AMINOTRANSFERASE",
@@ -37,8 +34,11 @@ HEM_ORD <- c("BASOPHILS","EOSINOPHILS","HEMATOCRIT","HEMOGLOBIN","LYMPHOCYTES",
   "ERY. MEAN CORPUSCULAR HEMOGLOBIN","ERY. MEAN CORPUSCULAR HB CONCENTRATION","ERY. MEAN CORPUSCULAR VOLUME",
   "MONOCYTES","PLATELET","ERYTHROCYTES","LEUKOCYTES")
 
-# Read + prep a lab dataset: on-treatment analysis records, PARAM -> short label,
-# LBNRIND -> L/N/H, factor everything so counts complete to a full 3x3 per PARAM.
+#' Read and prep a lab dataset for the count table
+#' @param name ADaM dataset name (without extension)
+#' @param rc Named vector remapping PARAM to short labels
+#' @param ord Character vector giving the PARAM display order
+#' @return On-treatment analysis records with PARAM/TRTP/RIND factored to a full 3x3 per PARAM
 prep <- function(name, rc, ord) {
   d <- read_adam(name) |> filter(SAFFL == "Y", ANL01FL == "Y", AVISITN != 99)
   d$PARAM <- recode(d$PARAM, !!!rc)
@@ -49,9 +49,11 @@ prep <- function(name, rc, ord) {
            RIND  = factor(RIND, c("L", "N", "H")))
 }
 
-# 9-column n(%) block: PARAM rows x (arm x category) columns. Percent denom = the
-# per-(PARAM, arm) total (subjects with a non-missing assessment), so zeros display
-# as a bare " 0" (zero_count_display = count_only), matching the reference.
+#' Build the 9-column n(%) block (PARAM rows x arm-category columns)
+#' @param d Prepped lab records from `prep()`
+#' @return A tibble with a STUB label column and res1..res9 n(%) cells
+#'
+#' Percent denominator is the per-(PARAM, arm) total, so zeros display as a bare " 0".
 count_wide <- function(d) {
   b <- tplyr_build(tplyr_spec(cols = c("TRTP", "RIND"),
         layers = tplyr_layers(group_count("PARAM",
@@ -67,10 +69,14 @@ count_wide <- function(d) {
   out
 }
 
-# Fisher's exact p per PARAM over the 3x3 (arm x category) table, rounded to 3dp and
-# formatted like the reference (num_fmt). na_rule reproduces the legacy heme guard:
-# when every Low and every High cell is 0 (all subjects Normal) the test is undefined,
-# so the p-value is left blank (e.g. BASOPHILS).
+#' Compute the Fisher's-exact p-value per PARAM
+#' @param d Prepped lab records from `prep()`
+#' @param na_rule When TRUE, blank the p-value where every Low and High cell is 0
+#' @param size Field width passed to `num_fmt()`
+#' @return A tibble of STUB and formatted PVAL (NA -> "")
+#'
+#' The test is over the 3x3 (arm x category) table. na_rule leaves the p-value blank when
+#' all subjects are Normal (every Low and High cell 0), where Fisher's test is undefined.
 pvals <- function(d, na_rule = FALSE, size = 4) {
   cnt <- d |> count(PARAM, TRTP, RIND, .drop = FALSE) |> arrange(PARAM, TRTP, RIND)
   cnt |> group_by(PARAM) |> group_map(function(x, k) {
@@ -82,7 +88,11 @@ pvals <- function(d, na_rule = FALSE, size = 4) {
   }) |> bind_rows()
 }
 
-# Attach the p-value column to a count block (join on PARAM label so ordering is safe).
+#' Attach the p-value column to a count block (joined on the PARAM label)
+#' @param block A count block from `count_wide()`
+#' @param d Prepped lab records from `prep()`
+#' @param na_rule Passed through to `pvals()`
+#' @return `block` with a PVAL column (NA -> "")
 with_p <- function(block, d, na_rule = FALSE) {
   block |> left_join(pvals(d, na_rule = na_rule), by = "STUB") |>
     mutate(PVAL = ifelse(is.na(PVAL), "", PVAL))
@@ -93,20 +103,33 @@ hem_d  <- prep("adlbh", HEM_RC, HEM_ORD)
 chem   <- with_p(count_wide(chem_d), chem_d, na_rule = FALSE)
 heme   <- with_p(count_wide(hem_d),  hem_d,  na_rule = TRUE)
 
-# Section/blank row helpers (STUB text, all value cells blank).
 COLS <- c(paste0("res", 1:9), "PVAL")
+
+#' Build a section/blank row (STUB text, all value cells blank)
+#' @param stub Text for the STUB column
+#' @return A one-row tibble with `stub` in STUB and "" in all value columns
 row9 <- function(stub = "") tibble(STUB = stub, !!!setNames(rep(list(""), 10), COLS))
 
 final <- bind_rows(
   row9(""), row9("CHEMISTRY"), row9("----------"), chem,
   row9(""), row9("HEMATOLOGY"), row9("----------"), heme)
-final[] <- lapply(final, function(x) { x[is.na(x)] <- ""; attr(x, "label") <- NULL; as.character(x) })
+final[] <- lapply(final, function(x) {
+  x[is.na(x)] <- ""
+  attr(x, "label") <- NULL
+  as.character(x)
+})
 
-# --- render: 2-level header (arm spanner x Low/Normal/High) + Fisher p column.
+# render: 2-level header (arm spanner x Low/Normal/High) + Fisher p column.
 # Arm Ns are the safety population per arm (adsl, excluding Screen Failure).
 Ns  <- read_adam("adsl") |> filter(ARM != "Screen Failure") |> count(TRT01P) |> deframe()
+
+#' Format an arm spanner label with its N
+#' @param short Short arm label
+#' @param arm Full arm name for the N lookup
+#' @return "short (N=n)"
 sp  <- function(short, arm) sprintf("%s (N=%s)", short, Ns[[arm]])
-PBO <- sp("Placebo", "Placebo"); LOW <- sp("Xan. Low", "Xanomeline Low Dose")
+PBO <- sp("Placebo", "Placebo")
+LOW <- sp("Xan. Low", "Xanomeline Low Dose")
 HIGH <- sp("Xan. High", "Xanomeline High Dose")
 ct <- clintable(final, use_labels = FALSE) |>
   clin_column_headers(
@@ -124,11 +147,17 @@ ct <- clintable(final, use_labels = FALSE) |>
   flextable::width(j = "PVAL", width = 0.52)
 ct <- add_titles_footnotes(ct, TABLE, source_path = SOURCE, date = FIDELITY_DATE)
 
-# Solid underline beneath each arm spanner (header row 1), spanning the 9 value
-# columns (cols 2:10); the full-width bottom rule under the labels row comes from
-# the house default (cdisc_table_default).
-sd <- function(x, ...) { x <- cdisc_table_default(x)
-  flextable::hline(x, i = 1, j = 2:10, border = officer::fp_border(color = "black", width = 1), part = "header") }
+#' Apply the house default plus a solid underline beneath each arm spanner
+#' @param x A flextable
+#' @param ... Unused
+#' @return The styled flextable
+#'
+#' The rule spans the 9 value columns (cols 2:10) on header row 1; the full-width bottom
+#' rule under the labels row comes from cdisc_table_default().
+sd <- function(x, ...) {
+  x <- cdisc_table_default(x)
+  flextable::hline(x, i = 1, j = 2:10, border = officer::fp_border(color = "black", width = 1), part = "header")
+}
 old <- options(clinify_table_default = sd)
 write_clindoc(ct, file.path(OUTPUT_DIR, paste0(TABLE, ".docx")))
 options(old)

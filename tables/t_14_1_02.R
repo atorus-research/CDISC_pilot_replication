@@ -1,14 +1,14 @@
-# tables/t_14_1_02.R
-# Table 14-1.02 — Summary of End of Study Data (ITT)
-# Two sections: Completion Status, and Reason for Early Termination. n(%) by arm
-# + Total, all percents over the arm N; injected Fisher's exact p-values.
+# t_14_1_02.R
+# Table 14-1.02: Summary of End of Study Data   (Population: Intent-to-Treat)
+# Produces: outputs/14-1.02.docx
+# Source: ADSL; completion status + termination reason as n(%) by arm/Total, Fisher's exact p-values.
 source("R/setup.R"); source("R/helpers.R")
 
 TABLE <- "14-1.02"; SOURCE <- "programs/t-14-1-02.R"
 ARMS  <- c("Placebo", "Xanomeline Low Dose", "Xanomeline High Dose", "Total")
 
 adsl <- read_adam("adsl")
-# DCSREAS -> display label (order = reference display order)
+# DCSREAS -> display label; map order sets the display order
 reason_lab <- c(
   "Adverse Event"      = "Adverse Event",
   "Death"              = "Death",
@@ -29,7 +29,10 @@ adsl <- adsl |>
 adslT <- bind_rows(adsl, mutate(adsl, TRT01P = "Total")) |>
   mutate(TRT01P = factor(TRT01P, levels = ARMS))
 
-# n(%) count block; denominators = arm N via pop_data (all subjects incl Total)
+#' Build an n(%) count block for a categorical variable
+#' @param data_with_total Analysis data including the bound "Total" arm
+#' @param var Name of the categorical variable to count
+#' @return Tibble with an indented rowlbl and res1..res4 (Placebo/Low/High/Total); denominators are arm N via pop_data
 count_block <- function(data_with_total, var) {
   s <- tplyr_spec(cols = "TRT01P",
                   pop_data = pop_data(cols = c("TRT01P" = "TRT01P")),
@@ -46,23 +49,26 @@ count_block <- function(data_with_total, var) {
 }
 miss_row <- tibble(rowlbl = "  Missing", res1 = "  0 (  0%)", res2 = "  0 (  0%)",
                    res3 = "  0 (  0%)", res4 = "  0 (  0%)")
+#' Build a section-header row with a label and empty result cells
+#' @param t Section-header text
+#' @return One-row tibble with rowlbl = t and empty res1..res4
 sec  <- function(t) tibble(rowlbl = t, res1 = "", res2 = "", res3 = "", res4 = "")
+#' Build a fully blank spacer row
+#' @return One-row tibble with all cells empty
 blank <- function() tibble(rowlbl = "", res1 = "", res2 = "", res3 = "", res4 = "")
 
 # Completion status (denominator = full arm N)
 comp <- count_block(adslT, "COMP_STAT")
-comp_p <- fish_p_str(adsl$COMP24FL, adsl$TRT01P)                    # -> <.0001, on row 1
+comp_p <- fish_p_str(adsl$COMP24FL, adsl$TRT01P)
 
 # Reason for early termination (numerator = terminated; denom = full arm N)
 term_dat <- adslT |> filter(COMP24FL == "N")
 term <- count_block(term_dat, "DCREASCD")
-# %in% (not ==) so completers, whose DCREASCD is NA, count as 0 rather than being
-# dropped from the test (matches the reference: Fisher over all subjects).
+# %in% (not ==): completers have NA DCREASCD and must count as 0, not be dropped from the test.
 ae_p  <- fish_p_str(as.integer(adsl$DCREASCD %in% "Adverse Event"),      adsl$TRT01P, width = 6)
 loe_p <- fish_p_str(as.integer(adsl$DCREASCD %in% "Lack of Efficacy[2]"), adsl$TRT01P, width = 6)
 
-# p-value column: on the section's first data row (completion status; adverse
-# event) and the Lack-of-Efficacy row.
+# p-values sit on each section's first data row and the Lack-of-Efficacy row.
 comp$p <- ""; comp$p[1] <- comp_p
 term$p <- ""; term$p[1] <- ae_p
 term$p[term$rowlbl == "  Lack of Efficacy[2]"] <- loe_p
@@ -91,8 +97,7 @@ ct <- clintable(final, use_labels = FALSE) |>
   flextable::width(j = "res1", width = 1.081) |>
   flextable::width(j = c("res2", "res3", "res4", "p"), width = 1.08) |>
   flextable::set_table_properties(align = "center")
-# Section-header rows span the full width (reference used no-wrap so they sit on
-# one line); merge across all columns so the long label doesn't wrap in the stub.
+# Merge section-header rows across all columns so the long label doesn't wrap in the stub.
 sec_rows <- which(final$rowlbl %in% c("Completion Status:",
                                       "Reason for Early Termination (prior to Week 24):"))
 for (r in sec_rows) ct <- flextable::merge_at(ct, i = r, j = seq_len(ncol(final)), part = "body")

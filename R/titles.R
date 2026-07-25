@@ -1,28 +1,17 @@
-# R/titles.R
-# -----------------------------------------------------------------------------
-# Read title/footnote lines for a table out of data/titles.xlsx and return them
-# as clinify-ready lists (for clin_add_titles() / clin_add_footnotes()).
-#
-# The spreadsheet follows the pilot's pharmaRTF convention:
-#   columns: table_number, index, type(title|footnote), text1, text2, align, bold, italic, font
-#   align: "split" (text1 left / text2 right), "left", "center"
-#   dynamic tokens embedded in the text:
-#     "PAGE_FORMAT: Page %s of %s"        -> "Page {PAGE} of {NUMPAGES}"  (clinify Word fields)
-#     "FILE_PATH: Source: %s"             -> sprintf("Source: %s", source_path)
-#     "DATE_FORMAT: <strftime pattern>"   -> formatted date (or a literal string)
-#
-# clinify alignment rules honoured:
-#   * split line -> 2-element vector (left/right)
-#   * title, single element  -> centered  ; title left -> duplicate trick c(t, t)
-#   * footnote, single element -> left-aligned
-#
-# NOTE (feature request drafted for clinify): a spreadsheet->titles/footnotes
-# reader like this belongs in clinify itself with pluggable token substitution;
-# see notes/feature-requests/.
-# -----------------------------------------------------------------------------
+# R/titles.R — read a table's titles/footnotes from data/titles.xlsx as clinify-ready lists
 
 library(readxl)
 
+#' Substitute a dynamic token in a title/footnote cell
+#'
+#' Expands the spreadsheet's `PAGE_FORMAT:`, `FILE_PATH:` and `DATE_FORMAT:`
+#' tokens; plain text is returned unchanged.
+#'
+#' @param txt Cell text, possibly beginning with a token prefix.
+#' @param source_path Source path substituted into a `FILE_PATH:` token.
+#' @param date Date for a `DATE_FORMAT:` token; a character value is used
+#'   verbatim (fidelity mode) and `NULL` uses the current time.
+#' @return The substituted string.
 .sub_tokens <- function(txt, source_path, date) {
   if (is.na(txt) || !nzchar(txt)) return("")
   if (startsWith(txt, "PAGE_FORMAT:")) {
@@ -44,6 +33,13 @@ library(readxl)
   txt
 }
 
+#' Build the aligned text vector for one title/footnote line
+#'
+#' @param row One spreadsheet row.
+#' @param type Line type, `"title"` or `"footnote"`.
+#' @param source_path Source path passed to token substitution.
+#' @param date Date passed to token substitution.
+#' @return A length-2 vector for a split line, otherwise length 1.
 .line_vec <- function(row, type, source_path, date) {
   t1 <- .sub_tokens(row$text1, source_path, date)
   if (identical(row$align, "split")) {
@@ -53,13 +49,23 @@ library(readxl)
   c(t1)                            # single element; alignment via .line_align()
 }
 
-# Per-line alignment for clin_add_titles(align=)/clin_add_footnotes(align=). NA = clinify
-# default (title single -> center, footnote single -> left, 2-element -> split). A left title
-# is now an explicit "left" (clinify #98) instead of the old duplicate-text merge trick.
+#' Resolve the explicit alignment for one title/footnote line
+#'
+#' @param row One spreadsheet row.
+#' @param type Line type, `"title"` or `"footnote"`.
+#' @return `"left"` for a left-aligned title, otherwise `NA` (clinify default).
 .line_align <- function(row, type) {
   if (identical(type, "title") && identical(row$align, "left")) "left" else NA_character_
 }
 
+#' Read a table's titles and footnotes from the spreadsheet
+#'
+#' @param table_number Table identifier to filter on.
+#' @param path Path to the titles spreadsheet.
+#' @param source_path Source path passed to token substitution.
+#' @param date Date passed to token substitution.
+#' @return A list with `titles` and `footnotes`, each a list of line vectors
+#'   (`ls`) and per-line alignments (`align`).
 read_titles <- function(table_number,
                         path = "data/titles.xlsx",
                         source_path = NULL,
@@ -70,6 +76,10 @@ read_titles <- function(table_number,
   df <- df[df$table_number == table_number, , drop = FALSE]
   if (nrow(df) == 0) stop("No titles/footnotes found for table ", table_number)
 
+  #' Build the line and alignment lists for one line type
+  #'
+  #' @param kind Line type to select, `"title"` or `"footnote"`.
+  #' @return A list with `ls` (line vectors) and `align` (alignments).
   mk <- function(kind) {
     sub <- df[df$type == kind, , drop = FALSE]
     sub <- sub[order(sub$index), , drop = FALSE]
@@ -79,8 +89,11 @@ read_titles <- function(table_number,
   list(titles = mk("title"), footnotes = mk("footnote"))
 }
 
-# Extract the footer timestamp ("HH:MM Weekday, Month DD, YYYY") baked into a
-# table's reference RTF, so a fidelity build reproduces it exactly.
+#' Extract a table's reference-RTF footer timestamp
+#'
+#' @param table_number Table identifier (matches `<id>.rtf` in `ref_dir`).
+#' @param ref_dir Directory holding the reference RTFs.
+#' @return The `"HH:MM Weekday, Month DD, YYYY"` string, or `NULL` if absent.
 ref_timestamp <- function(table_number, ref_dir = REF_DIR) {
   f <- file.path(ref_dir, paste0(table_number, ".rtf"))
   if (!file.exists(f)) return(NULL)
@@ -89,18 +102,21 @@ ref_timestamp <- function(table_number, ref_dir = REF_DIR) {
   if (length(m)) m[1] else NULL
 }
 
-# Convenience wrapper: read titles for `table_number` and attach to a clintable
-# or clindoc `x`. When `date` is NULL, the table's reference-RTF timestamp is used
-# (fidelity mode).
+#' Attach a table's titles, footnotes and row pitch to a clinify object
+#'
+#' @param x A clintable or clindoc.
+#' @param table_number Table identifier.
+#' @param path Path to the titles spreadsheet.
+#' @param source_path Source path passed to token substitution.
+#' @param date Footer date; `NULL` uses the table's reference-RTF timestamp.
+#' @return `x` with titles, footnotes and row height applied.
 add_titles_footnotes <- function(x, table_number,
                                  path = "data/titles.xlsx",
                                  source_path = NULL, date = NULL) {
   if (is.null(date)) date <- ref_timestamp(table_number)
   tf <- read_titles(table_number, path, source_path, date)
-  # House row pitch (clinify #97 clin_row_height): body 15.35pt, titles/footnotes 11.4pt,
-  # rule="atleast" (floor -> single lines compact, wrapped cells grow). One central call
-  # replaces the former per-styler hrule/height_all and reaches the title/footnote blocks
-  # (which the option stylers alone could not pitch).
+  # House row pitch: body 15.35pt, titles/footnotes 11.4pt; "atleast" floors single
+  # lines compact and lets wrapped cells grow.
   x |>
     clinify::clin_add_titles(tf$titles$ls, align = tf$titles$align) |>
     clinify::clin_add_footnotes(tf$footnotes$ls, align = tf$footnotes$align) |>

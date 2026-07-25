@@ -4,10 +4,9 @@ fidelity.py — visual-fidelity comparison of clinical table documents.
 
 Renders an original .rtf and a regenerated .docx to PDF through the local
 Gotenberg + LibreOffice service (same engine for both => apples-to-apples
-layout), then scores per-page visual similarity. The pixel-diff / registration
-/ gridline logic mirrors doc-preview's verified spike harness
-(scratch/spike/harness.py); RTF is normalized first (fonttbl-whitespace +
-cell-padding fixes) exactly as doc-preview does.
+layout), then scores per-page visual similarity. RTF is normalized first
+(fonttbl whitespace + cell-padding fixes) so the two formats rasterize
+comparably.
 
 Usage:
     python fidelity.py <original.rtf> <regenerated.docx> [--out DIR] [--json]
@@ -30,7 +29,7 @@ GRIDLINE_SHIFT_PX = 2
 # RTF-vs-DOCX is cross-format through one engine; use the docx-class tolerance.
 PIXEL_THRESHOLD_PCT = 2.5
 
-# ---- RTF normalizer (verbatim from doc-preview/rtf_normalize.py) -------------
+# ---- RTF normalizer ---------------------------------------------------------
 def _fonttbl_span(data: bytes):
     start = data.find(rb"{\fonttbl")
     if start < 0:
@@ -88,7 +87,7 @@ def to_pdf(src: Path, dest: Path):
     with urllib.request.urlopen(req, timeout=300) as resp:
         dest.write_bytes(resp.read())
 
-# ---- rasterize + pixel diff (verbatim logic from harness.py) -----------------
+# ---- rasterize + pixel diff -------------------------------------------------
 def rasterize(pdf: Path, page: int, prefix: Path) -> Path:
     out = Path(str(prefix) + ".png")
     subprocess.run(["pdftoppm", "-f", str(page), "-l", str(page), "-r", str(DPI),

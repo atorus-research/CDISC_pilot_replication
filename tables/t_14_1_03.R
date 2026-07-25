@@ -1,9 +1,7 @@
-# tables/t_14_1_03.R
-# Table 14-1.03 — Summary of Number of Subjects By Site (All Subjects / ITT)
-# Bespoke crosstab: rows = (Pooled Id SITEGR1, Site Id SITEID); columns = 4 arm groups
-# (Placebo / Xan Low / Xan High / Total) x 3 population flags (ITT=ITTFL, Eff=EFFFL,
-# Com=COMP24FL). A plain subject-count crosstab - computed directly (tplyr2's layer model
-# doesn't fit 3 population flags as columns crossed with a Total arm + Total row).
+# t_14_1_03.R
+# Table 14-1.03: Summary of Number of Subjects By Site   (Population: All Subjects)
+# Produces: outputs/14-1.03.docx
+# Source: ADSL (ITTFL == "Y"); direct crosstab of site x arm subject counts for ITT/Eff/Com flags.
 source("R/setup.R"); source("R/helpers.R")
 
 TABLE <- "14-1.03"; SOURCE <- "programs/t-14-1-03.R"
@@ -33,13 +31,21 @@ w <- bind_rows(w, w |> summarize(across(all_of(COLS), sum)) |>
 final <- tibble(PID = w$SITEGR1, SID = w$SITEID)
 for (cc in COLS) final[[cc]] <- as.character(w[[cc]])
 
-# --- header: arm spanner (str_wrap width 10, matching legacy) + ITT/Eff/Com sub-labels
+# header: arm spanner (str_wrap width 10) + ITT/Eff/Com sub-labels
 N <- a |> count(TRT01P) |> deframe()
+#' Build a wrapped arm spanner label with its N
+#' @param arm Treatment-arm name
+#' @param n Subject count for the arm
+#' @return Spanner label string wrapped at width 10 with an "(N=n)" line
 alab <- function(arm, n) paste0(gsub("\n", "\n", stringr::str_wrap(arm, width = 10)), "\n(N=", n, ")")
 sp <- c(P = alab("Placebo", N[["Placebo"]]),
         L = alab("Xanomeline Low Dose", N[["Xanomeline Low Dose"]]),
         H = alab("Xanomeline High Dose", N[["Xanomeline High Dose"]]),
         T = paste0("Total\n(N=", nrow(a), ")"))
+#' Build a two-line column header (arm spanner + sub-label)
+#' @param code Arm code (P, L, H, or T)
+#' @param sub Sub-label (ITT, Eff, or Com)
+#' @return Length-2 character vector: arm spanner and sub-label
 hdr <- function(code, sub) c(sp[[code]], sub)
 ct <- clintable(final, use_labels = FALSE) |>
   clin_column_headers(
@@ -57,9 +63,10 @@ ct <- clintable(final, use_labels = FALSE) |>
   flextable::width(j = COLS, width = 0.45)
 ct <- add_titles_footnotes(ct, TABLE, source_path = SOURCE)
 
-# solid underline beneath each arm spanner (header row 1), continuous cols 3:14; centered.
-# Extra top padding on the sub-label row reproduces the reference's spanner-to-labels gap
-# (a blank spacer row in the legacy) so the body sits at the reference's vertical position.
+#' Apply clinify table defaults plus the arm-spanner underline and sub-label padding
+#' @param x A flextable to style
+#' @param ... Additional arguments (unused)
+#' @return Styled flextable with a fixed layout, spanner underline, and padded sub-label row
 sd <- function(x, ...) { x <- cdisc_table_default(x)
   x <- flextable::set_table_properties(x, layout = "fixed", align = "center")
   x <- flextable::padding(x, i = 2, padding.top = 34, part = "header")

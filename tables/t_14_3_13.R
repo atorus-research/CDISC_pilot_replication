@@ -1,7 +1,7 @@
-# tables/t_14_3_13.R
-# Table 14-3.13 — CIBIC+ Categorical Analysis - LOCF (Efficacy)
-# Per visit (Wk 8/16/24): an n row + the 7 ordinal CIBIC categories (n(%)), with a
-# row-mean-scores CMH p-value (stratified by site group) via coin::cmh_test.
+# t_14_3_13.R
+# Table 14-3.13: CIBIC+ - Categorical Analysis - LOCF   (Population: Efficacy)
+# Produces: outputs/14-3.13.docx
+# Per-visit CIBIC+ category counts (adcibc) with a row-mean-scores CMH p-value via coin::cmh_test.
 source("R/setup.R"); source("R/helpers.R")
 suppressPackageStartupMessages(library(coin))
 
@@ -16,14 +16,19 @@ cbic <- read_adam("adcibc") |>
          TRTP  = factor(TRTP, levels = ARMS))
 hn <- cbic |> distinct(USUBJID, TRTP) |> count(TRTP) |> deframe()   # header N (79/81/74)
 
-# Row-mean-scores CMH (ordinal AVAL, treatment groups, stratified by site group).
-# coin reproduces the SAS value exactly (validated vs legacy: 0.2727/0.4003/0.6180).
+#' Compute the row-mean-scores CMH p-value for one visit.
+#' @param wk Analysis visit number (8, 16, or 24).
+#' @return Character string with the formatted p-value (ordinal AVAL by treatment, stratified by site group).
 cmh_pval <- function(wk) {
   d <- cbic |> filter(AVISITN == wk) |> mutate(AVAL = ordered(AVAL), SITEGR1 = factor(SITEGR1))
   p <- pvalue(cmh_test(AVAL ~ TRTP | SITEGR1, data = d, scores = list(AVAL = seq_len(nlevels(d$AVAL)))))
   num_fmt(p, digits = 4, size = 5, int_len = 1)
 }
 
+#' Build the display rows for one visit block.
+#' @param wk Analysis visit number (8, 16, or 24).
+#' @param lab Visit label shown on the block's first row.
+#' @return A padded tibble of one n row plus the seven CIBIC category rows.
 visit_block <- function(wk, lab) {
   d <- cbic |> filter(AVISITN == wk)
   b <- tplyr_build(tplyr_spec(cols = "TRTP", layers = tplyr_layers(group_count("AVALC",

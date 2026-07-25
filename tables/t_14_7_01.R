@@ -1,16 +1,7 @@
-# tables/t_14_7_01.R
-# Table 14-7.01 — Summary of Vital Signs at Baseline and End of Treatment (Safety)
-# Descriptive summary with the analysis dimensions DOWN the stub (Measure/PARAM,
-# Position/ATPT, Treatment/TRTP, Planned Relative Time/visit) and the six statistics
-# n/Mean/SD/Median/Min/Max ACROSS as columns. tplyr2 group_desc is the summary engine
-# (by = PARAM,ATPT,TRTP,visit; each stat a single-stat f_str); group_desc emits stats
-# as ROWS so they are pivoted to columns here, then repeated stub labels are blanked
-# and a spacer row is inserted after each treatment block (reference pad_row). Multi-
-# page -> verified by pagination-agnostic CONTENT (text-set), so stub/label wrapping is
-# reproduced via column widths + top valign to match the reference's physical lines.
-#
-# EOT = ADVS "End of Treatment" derived visit (AVISIT == "End of Treatment", AVISITN 99)
-# used as-is from the ADaM. See report re: the documented EOT-flag data discrepancy.
+# t_14_7_01.R
+# Table 14-7.01: Summary of Vital Signs at Baseline and End of Treatment   (Population: Safety)
+# Produces: outputs/14-7.01.docx
+# Source: ADVS BP/pulse at Baseline/Week 24/End of Treatment summarized with tplyr2 group_desc; ADSL for arm N.
 source("R/setup.R"); source("R/helpers.R")
 
 TABLE <- "14-7.01"; SOURCE <- "programs/t-14-7.01.R"
@@ -37,7 +28,9 @@ advs <- advs |>
   mutate(PARAM = recode(PARAM, "Pulse Rate (beats/min)" = "Pulse (bpm)"),
          PRTFL = case_when(ABLFL == "Y" ~ "Baseline", W24FL ~ "Week 24", EOTFL ~ "End of Trt."))
 
-# tplyr2 desc -> per (PARAM, ATPT, TRTP, PRTFL) six stat columns.
+#' Summarize AVAL into six stat columns per PARAM/ATPT/TRTP/PRTFL
+#' @param dat ADVS rows to summarize
+#' @return A wide tibble with one row per group and n/Mean/SD/Median/Min./Max. columns
 build_wide <- function(dat) {
   dat$ALL <- "x"
   b <- tplyr_build(tplyr_spec(cols = "ALL", layers = tplyr_layers(
@@ -57,9 +50,8 @@ ATPTS <- sort(unique(w$ATPT))
 blank_row <- tibble(Measure = "", Position = "", Treatment = "", N = "", PRT = "",
                     !!!setNames(rep(list(""), 6), COLS))
 
-# Assemble: stub labels shown only on the first row of their group; spacer row after
-# each treatment block. valign top (at render) keeps each visit's stats on the first
-# physical line while the tall Measure/Position cells wrap beneath — matching the ref.
+# Assemble: stub labels appear only on the first row of their group; a blank spacer row
+# follows each treatment block.
 out <- list()
 for (p in PARAMS) for (ai in seq_along(ATPTS)) for (ti in seq_along(ARM)) {
   grp <- w |> filter(PARAM == p, ATPT == ATPTS[ai], TRTP == ARM[ti]) |>
@@ -77,8 +69,7 @@ for (p in PARAMS) for (ai in seq_along(ATPTS)) for (ti in seq_along(ARM)) {
 final <- bind_rows(out) |> select(Measure, Position, Treatment, N, PRT, all_of(COLS))
 final[] <- lapply(final, function(x) { x[is.na(x)] <- ""; as.character(x) })
 
-# --- render: header labels bottom-aligned; PRT header "Planned Relative Time" wraps to
-# 3 lines in its narrow column (matches ref); body stats left, treatment centered.
+# render: header labels bottom-aligned; body stats left-aligned, treatment centered.
 ct <- clintable(final, use_labels = FALSE) |>
   clin_column_headers(
     Measure = "Measure", Position = "Position", Treatment = "Treatment", N = "N",

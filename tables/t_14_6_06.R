@@ -1,32 +1,32 @@
-# tables/t_14_6_06.R
-# Table 14-6.06 — Shifts of Hy's Law Values During Treatment (Safety).
-# Same transposed-shift layout as 14-6.05 for two derived Hy's-law analytes:
-#   * Transaminase 1.5 x ULN                     (PARAMCD == "TRANSHY")
-#   * Total Bili 1.5 x ULN and Transaminase ...  (PARAMCD == "HYLAW")
-# Baseline status (Normal=0 / High=1) is a COLUMN dimension crossed with treatment;
-# shift-to (n / 0 / 1) are rows, percentages column-wise per baseline group ->
-# tplyr2 cols=c("TRTP","BASE") count (the 14-6.04/14-6.05 crossed-cols workaround
-# for tplyr2 FR #18). Per-analyte CMH p-value (row-mean-scores, baseline-stratified)
-# via coin::cmh_test. adlbhy is used (adlbc/adlbh lack the Hy's-law derivations).
-source("R/setup.R"); source("R/helpers.R")
+# t_14_6_06.R
+# Table 14-6.06: Shifts of Hy's Law Values During Treatment   (Population: Safety)
+# Produces: outputs/14-6.06.docx
+# Source: adlbhy (adsl for arm Ns); tplyr2 group_shift column-% shift-to AVAL by baseline
+#   BASE (Normal=0/High=1) for two Hy's-law analytes (TRANSHY, HYLAW), coin::cmh_test p per analyte.
+source("R/setup.R")
+source("R/helpers.R")
 suppressPackageStartupMessages(library(coin))
 
-TABLE <- "14-6.06"; SOURCE <- "programs/t-14-6.06.R"
+TABLE <- "14-6.06"
+SOURCE <- "programs/t-14-6.06.R"
 ARMS <- c("Placebo", "Xanomeline Low Dose", "Xanomeline High Dose")
 COLS <- c("Placebo N","Placebo H","Xanomeline Low Dose N","Xanomeline Low Dose H",
           "Xanomeline High Dose N","Xanomeline High Dose H")
 
 # One record per subject per analyte: worst (max AVAL) then latest (max AVISITN),
-# among post-baseline records with a non-missing baseline (legacy selection).
+# among post-baseline records with a non-missing baseline.
 adlbhy <- read_adam("adlbhy") |>
   filter(SAFFL == "Y", PARAMCD %in% c("TRANSHY", "HYLAW"), !is.na(BASE), AVISITN > 0) |>
   group_by(USUBJID) |> filter(AVAL == max(AVAL)) |> filter(AVISITN == max(AVISITN)) |> ungroup() |>
   mutate(BASE = factor(BASE, c(0, 1)), AVAL = factor(AVAL, c(0, 1)), TRTP = factor(TRTP, ARMS))
 
-# Row-mean-scores CMH (ordinal shift AVAL scored 1/2, treatment groups, stratified
-# by baseline status). coin is the clean CRAN CMH (the 14-3.13 pattern). Blank when
-# nobody shifted to High, or when the abnormal-at-baseline stratum is empty so
-# "controlling for baseline status" is vacuous (reproduces the legacy blank for HYLAW).
+#' Compute the per-analyte row-mean-scores CMH p-value
+#' @param d One analyte's selected records (from `adlbhy`)
+#' @return Formatted p-value (3 dp), or "" when the test is not applicable
+#'
+#' Ordinal shift (AVAL scored 1/2) across treatment groups, stratified by baseline status.
+#' Blank when nobody shifted to High, or when the abnormal-at-baseline stratum is empty so
+#' "controlling for baseline status" is vacuous (e.g. HYLAW).
 cmh_pval <- function(d) {
   if (all(d$AVAL == "0")) return("")
   if (dplyr::n_distinct(d$BASE) < 2) return("")
@@ -40,45 +40,62 @@ cmh_pval <- function(d) {
     error = function(e) "")
 }
 
-# shift cells (n(%) per baseline group, column-wise) + n-row totals for one analyte.
+#' Build the shift cells and n-row totals for one analyte
+#' @param pc PARAMCD of the analyte ("TRANSHY" or "HYLAW")
+#' @return A list with `n` (the n-row, incl. PVAL) and `shifts` (the shift-to rows)
 analyte_rows <- function(pc) {
   d <- adlbhy |> filter(PARAMCD == pc)
-  # Native group_shift with shift_denom="column" (tplyr2 #28/#30 + #31/#32). No `by` here (one
-  # analyte per call), so the column denominator is each TRTP x BASE baseline group. res -> TRTP x BASE.
+  # group_shift with shift_denom = "column"; no `by` (one analyte per call) so the column
+  # denominator is each TRTP x BASE baseline group. res columns come out TRTP x BASE.
   b <- tplyr_build(tplyr_spec(cols = "TRTP",
         layers = tplyr_layers(group_shift(c(row = "AVAL", column = "BASE"),
           settings = layer_settings(
             shift_denom = "column",
             format_strings = list(n_counts = f_str("xx(xxx%)", "n", "pct")),
             order_count_method = "byfactor", zero_count_display = "count_only")))), d)
-  rc <- grep("^res", names(b), value = TRUE); rl <- grep("^rowlabel", names(b), value = TRUE)
+  rc <- grep("^res", names(b), value = TRUE)
+  rl <- grep("^rowlabel", names(b), value = TRUE)
   sh <- tibble(SHIFT = as.character(b[[rl[1]]]))
   for (i in seq_along(rc)) sh[[COLS[i]]] <- as.character(b[[rc[i]]])
   nr <- d |> count(TRTP, BASE, .drop = FALSE) |>
     mutate(col = paste(TRTP, recode(as.character(BASE), "0" = "N", "1" = "H"))) |>
     select(col, n) |> pivot_wider(names_from = col, values_from = n, values_fill = 0)
   nr[COLS] <- lapply(nr[COLS], function(x) sprintf("%2d", x))
-  n_row <- tibble(SHIFT = "n"); for (c in COLS) n_row[[c]] <- nr[[c]]
+  n_row <- tibble(SHIFT = "n")
+  for (c in COLS) n_row[[c]] <- nr[[c]]
   n_row$PVAL <- cmh_pval(d)
   sh$PVAL <- ""
   list(n = n_row, shifts = sh)
 }
 
-# assemble a block: optional label-only lead row, then n / 0 / 1 rows.
+#' Build a full-width blank/lead row
+#' @return A one-row tibble with blank stub, value and p-value cells
 blank_row <- function() tibble(LBL = "", SHIFT = "", !!!setNames(rep(list(""), 6), COLS), PVAL = "")
+
+#' Assemble one analyte block: optional wrapped-label lead row, then n / 0 / 1 rows
+#' @param pc PARAMCD of the analyte
+#' @param lead_label Optional first line of a wrapped stub label (or NULL)
+#' @param n_label Stub label placed on the n-row
+#' @return A tibble of the analyte's body rows
 block <- function(pc, lead_label, n_label) {
   r <- analyte_rows(pc)
-  n_row <- r$n; n_row$LBL <- n_label
+  n_row <- r$n
+  n_row$LBL <- n_label
+  #' Test whether every shift cell is zero (blank or a formatted 0)
+  #' @param v Character vector of formatted cells
+  #' @return TRUE when all cells are "0" or ""
   zero_cell <- function(v) all(sub("\\s", "", v) %in% c("0", ""))
   rows <- list(n_row[, c("LBL", "SHIFT", COLS, "PVAL")])
   for (k in seq_len(nrow(r$shifts))) {
-    row <- r$shifts[k, ]; row$LBL <- ""
+    row <- r$shifts[k, ]
+    row$LBL <- ""
     if (row$SHIFT == "1" && zero_cell(unlist(row[COLS]))) next   # drop all-zero High row
     rows[[length(rows) + 1]] <- row[, c("LBL", "SHIFT", COLS, "PVAL")]
   }
   out <- bind_rows(rows)
   if (!is.null(lead_label)) {                                    # wrapped-label lead row
-    ll <- blank_row(); ll$LBL <- lead_label
+    ll <- blank_row()
+    ll$LBL <- lead_label
     out <- bind_rows(ll, out)
   }
   out
@@ -90,10 +107,18 @@ final <- bind_rows(
   blank_row(),
   block("HYLAW", "Total Bili 1.5 x ULN and", "Transaminase 1.5 x ULN")
 ) |> select(LBL, SHIFT, all_of(COLS), PVAL)
-final[] <- lapply(final, function(x) { x[is.na(x)] <- ""; as.character(x) })
+final[] <- lapply(final, function(x) {
+  x[is.na(x)] <- ""
+  as.character(x)
+})
 
-# --- render: identical header to 14-6.05 (arm spanner x baseline, Shift[1], p-value[2])
+# render: same header as 14-6.05 (arm spanner x baseline, Shift[1], p-value[2])
 Ns <- read_adam("adsl") |> filter(ARM != "Screen Failure") |> count(TRT01P) |> deframe()
+
+#' Format an arm spanner label with its N
+#' @param short Short arm label
+#' @param arm Full arm name for the N lookup
+#' @return "short (N=n)"
 arm_hdr <- function(short, arm) sprintf("%s (N=%s)", short, Ns[[arm]])
 ct <- clintable(final, use_labels = FALSE) |>
   clin_column_headers(
@@ -105,9 +130,8 @@ ct <- clintable(final, use_labels = FALSE) |>
     `Xanomeline High Dose N` = c(arm_hdr("Xan. High", "Xanomeline High Dose"), "Normal at", "Baseline"),
     `Xanomeline High Dose H` = c(arm_hdr("Xan. High", "Xanomeline High Dose"), "High at", "Baseline"),
     PVAL = c("", "p-\nvalue", "[2]"),
-    # clinify #95: merge="spanners" merges every header row EXCEPT the bottom one, so the arm
-    # spanners merge while the repeated "Baseline" leaf labels stay as separate cells. (Was a
-    # merge_none() + manual merge_at() workaround before clinify gained per-row merge control.)
+    # merge = "spanners" merges every header row except the bottom one, so the arm
+    # spanners merge while the repeated "Baseline" leaf labels stay as separate cells.
     merge = "spanners") |>
   flextable::valign(part = "header", valign = "bottom") |>
   flextable::align(part = "header", align = "center") |>
@@ -120,11 +144,17 @@ ct <- clintable(final, use_labels = FALSE) |>
   flextable::width(j = "PVAL", width = 0.54)
 ct <- add_titles_footnotes(ct, TABLE, source_path = SOURCE)
 
-sd <- function(x, ...) { x <- cdisc_table_default(x)
+#' Apply the house default plus a 1pt underline beneath each arm spanner (header row 1)
+#' @param x A flextable
+#' @param ... Unused
+#' @return The styled flextable
+sd <- function(x, ...) {
+  x <- cdisc_table_default(x)
   bd <- officer::fp_border(color = "black", width = 1)
   x <- flextable::hline(x, i = 1, j = 3:4, border = bd, part = "header")
   x <- flextable::hline(x, i = 1, j = 5:6, border = bd, part = "header")
-  flextable::hline(x, i = 1, j = 7:8, border = bd, part = "header") }
+  flextable::hline(x, i = 1, j = 7:8, border = bd, part = "header")
+}
 old <- options(clinify_table_default = sd)
 write_clindoc(ct, file.path(OUTPUT_DIR, paste0(TABLE, ".docx")))
 options(old)

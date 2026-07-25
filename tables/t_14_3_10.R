@@ -1,22 +1,12 @@
-# tables/t_14_3_10.R
-# Table 14-3.10 — ADAS-Cog(11): Mean and Mean Change from Baseline over Time
-#
-# WIDE descriptive over Windowed + LOCF visits. Arms are ROW BLOCKS (Placebo,
-# Xan.Low, Xan.High), each an 8-slot visit ladder (Baseline, 3 Windowed weeks,
-# 3 LOCF weeks, spacer). Columns: AVAL n/Mean/Std/Med./Min./Max., baseline
-# Mean/Std, then a spanned "Change from baseline" block (CHG Mean/Std/Med./Min./
-# Max.). Baseline rows carry AVAL stats only (no change stats).
-#
-# The summary is a plain grouped dplyr build formatted with the shared byte-exact
-# num_fmt() — identical stat engine and sizes to the legacy programs/t-14-3-10.R,
-# so displayed values match the reference character-for-character. Only the
-# rendering is re-expressed with clinify (multi-row header + spanner) in place of
-# the legacy huxtable/pharmaRTF.
+# t_14_3_10.R
+# Table 14-3.10: ADAS Cog (11) - Mean and Mean Change from Baseline over Time   (Population: Efficacy)
+# Produces: outputs/14-3.10.docx
+# Grouped dplyr descriptive of adadas (PARAMCD ACTOT) AVAL and change over Windowed + LOCF visits; rendered with clinify.
 source("R/setup.R"); source("R/helpers.R")
 
 TABLE <- "14-3.10"; SOURCE <- "programs/t-14-3-10.R"
 
-# --- data (reproduces programs/t-14-3-10.R exactly) --------------------------
+# --- data --------------------------------------------------------------------
 adas <- read_adam("adadas") |>
   filter(EFFFL == "Y", PARAMCD == "ACTOT", ITTFL == "Y",
          AVISITN %in% c(0, 8, 16, 24), ANL01FL == "Y") |>
@@ -77,9 +67,9 @@ final <- left_join(aval, chg, by = c("TRTPN", "TRTP", "AVISITN", "AVISIT", "SET"
 final[] <- lapply(final, function(x) { x[is.na(x)] <- ""; as.character(x) })
 
 # --- render: two-row header, spanned "Change from baseline" block ------------
-# Header row 1 = spanner (only over the 5 CHG columns; blank elsewhere); row 2 =
-# labels, with "Bsln\nMean"/"Bsln\nStd" as stacked two-line labels. valign=bottom
-# so the single-line labels sit on the baseline and "Bsln" rides one line above.
+# Header row 1 = spanner (over the 5 CHG columns only); row 2 = labels, with
+# "Bsln\nMean"/"Bsln\nStd" as stacked two-line labels. valign = bottom keeps the
+# single-line labels on the baseline with "Bsln" one line above.
 ct <- clintable(final, use_labels = FALSE) |>
   clin_column_headers(
     TRTP   = c("", ""),
@@ -99,11 +89,10 @@ ct <- clintable(final, use_labels = FALSE) |>
     mxc    = c("---Change from baseline---", "Max.")) |>
   flextable::valign(part = "header", valign = "bottom") |>
   flextable::align(part = "header", align = "center") |>
-  flextable::align(part = "body", align = "center") |>            # numeric cells centered (legacy)
+  flextable::align(part = "body", align = "center") |>            # numeric cells centered
   flextable::align(j = c("TRTP", "AVISIT"), part = "body", align = "left")
 
-# Column widths reproduce the reference's per-column ratios exactly (the legacy
-# set_col_width() proportions) scaled to the 9.0" landscape table width, so every
+# Per-column width ratios scaled to the 9.0" landscape table width, so every
 # centered numeric cell lands at the reference x-position. Courier New 10pt
 # (~0.083"/char) fits with no wrapping; the 5 CHG columns (2.43") carry the
 # 26-char spanner on one line.
@@ -111,42 +100,29 @@ wv <- 9.0 * c(TRTP = .09, AVISIT = .19, n = .05,
               mean = .06, sd = .06, md = .06, mn = .05, mx = .05,
               bmn = .06, bsd = .06,
               meanc = .06, sdc = .05, mdc = .05, mnc = .05, mxc = .06)
-# The reference table renders ~2pt narrower than ratio*9" (huxtable does not lay
-# the ratios out to exactly ratio*9): its numeric grid sits 2pt left of ours with
-# the stub flush. Trim AVISIT by 2pt so the whole numeric block slides onto the
-# reference x-grid (stub left edge is unchanged), matching the reference's ~8.97"
-# total and aligning every centred cell.
+# Trim AVISIT by 2pt so the numeric block lands on the reference x-grid (stub
+# left edge unchanged), matching the reference's ~8.97" total width and aligning
+# every centred cell.
 wv["AVISIT"] <- wv["AVISIT"] - 2/72
 ct <- flextable::width(ct, j = names(wv), width = unname(wv))
 
 ct <- add_titles_footnotes(ct, TABLE, source_path = SOURCE)
 
-# The house header buffer (padding.top = 18) is applied to every header row,
-# which floats the single-line spanner row far above the label rows. The
-# reference instead clusters the three header lines (spanner / "Bsln" / labels)
-# tightly and carries the buffer above the spanner. Redistribute the header
-# padding per-table so the three lines sit at the reference y-positions while the
-# body (already row-pitch aligned) stays put: buffer above the spanner row, tight
-# gap to the label row, and the buffer's slack moved below the labels.
+#' Table-specific clinify default that positions the three-line header.
+#' @param x A flextable to receive the CDISC house style and per-table padding.
+#' @param ... Unused; absorbs extra arguments from the clinify default hook.
+#' @return The styled flextable.
 sd <- function(x, ...) {
   x <- cdisc_table_default(x)
-  # The reference used set_ignore_cell_padding(TRUE) (zero cell padding). The
-  # house default's 2pt L/R padding shifts the whole body grid ~2pt right of the
-  # reference (and off from the centred title block). Match the reference's zero
-  # padding: the body grid sits flush at the left margin and every centred
-  # numeric cell lands on the reference x-position.
+  # Zero L/R cell padding so the body grid sits flush at the left margin and every
+  # centred numeric cell lands on the reference x-position.
   x <- flextable::padding(x, padding.left = 0, padding.right = 0, part = "all")
   x <- flextable::padding(x, i = 1, padding.top = 21, padding.bottom = 0, part = "header")
-  # Row2 bottom padding is kept tiny so the header rule sits tight under the label
-  # row (as in the reference, ~144pt) rather than being pushed down against the
-  # body; the rule->body gap is instead carried by the first body row's top
-  # padding. (Aligning the strong header rule is what stops the fidelity harness's
-  # row-projection registration from mis-locking by one row on this 24-row grid.)
+  # Keep row-2 bottom padding tiny so the header rule sits tight under the label
+  # row; the rule->body gap is carried by the first body row's top padding.
   x <- flextable::padding(x, i = 2, padding.top = 2,  padding.bottom = 1, part = "header")
   x <- flextable::padding(x, i = 1, padding.top = 18, padding.bottom = 2, part = "body")
-  # The reference table is flush-left at the margin; flextable defaults to a
-  # page-centred table, which (against the centred title block) leaves the body
-  # grid a couple of points off. Pin it left so the grid starts at the margin.
+  # Pin the table flush-left at the margin (flextable defaults to page-centred).
   x <- flextable::set_table_properties(x, layout = "fixed", align = "left")
   x
 }

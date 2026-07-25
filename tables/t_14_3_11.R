@@ -1,11 +1,7 @@
-# tables/t_14_3_11.R
-# Table 14-3.11 — ADAS-Cog(11) Repeated Measures Analysis of Change from Baseline
-#   to Week 24 (Efficacy). Model-only display (LS Means + pairwise contrasts).
-#
-# Fit with mmrm() using an UNSTRUCTURED within-subject covariance + Kenward-Roger
-# (matches SAS PROC MIXED / TYPE=UN). This deliberately differs from the legacy
-# RTF, which used lme4 with a random-slope term and was documented as not
-# matching SAS. Per the project's "correct modern values" policy, mmrm is used.
+# t_14_3_11.R
+# Table 14-3.11: ADAS Cog (11) - Repeated Measures Analysis of Change from Baseline to Week 24   (Population: Efficacy)
+# Produces: outputs/14-3.11.docx
+# mmrm() unstructured-covariance repeated-measures fit on adadas (PARAMCD ACTOT) CHG; LS means + pairwise contrasts via emmeans.
 source("R/setup.R"); source("R/helpers.R")
 suppressPackageStartupMessages({library(mmrm); library(emmeans)})
 
@@ -24,12 +20,13 @@ hn <- adas |> distinct(USUBJID, TRTP) |>
 fit <- mmrm(CHG ~ SITEGR1 + TRTPCD_F * AWEEKC + BASE * AWEEKC + us(AWEEKC | USUBJID),
             data = adas, reml = TRUE, method = "Kenward-Roger", vcov = "Kenward-Roger-Linear")
 
-# Week-24 LS means (the title's endpoint; the original report averaged over weeks
-# via the main-effect lsmeans, a documented title/number mismatch - see issue #6).
-# DEFAULT (equal) weights over SITEGR1 to match SAS `lsmeans` (no OM option);
-# validated to the digit against the SAS output in issue #6.
+# Week-24 LS means (the title's endpoint). Equal weights over SITEGR1 to match
+# SAS `lsmeans` (no OM option).
 emm <- emmeans(fit, ~ TRTPCD_F, at = list(AWEEKC = "Week 24"))
 lsm <- as.data.frame(emm)
+#' Format the LS mean (SE) cell for one treatment level.
+#' @param lvl Treatment factor level (Pbo, Xan_Lo, Xan_Hi).
+#' @return Character string "mean (SE)".
 ls_of <- function(lvl) {
   r <- lsm[lsm$TRTPCD_F == lvl, ]
   sprintf("%s (%s)", num_fmt(r$emmean, int_len = 1, digits = 1, size = 3),
@@ -38,14 +35,25 @@ ls_of <- function(lvl) {
 pw <- as.data.frame(summary(contrast(emm, method = list(
   "Xan_Lo - Pbo"    = c(0, 1, -1), "Xan_Hi - Pbo" = c(1, 0, -1),
   "Xan_Hi - Xan_Lo" = c(1, -1, 0)), adjust = NULL), infer = c(TRUE, TRUE)))
+#' Format the p-value cell for one pairwise contrast.
+#' @param cn Contrast name.
+#' @return Character string with the formatted p-value.
 p_of  <- function(cn) num_fmt(pw$p.value[pw$contrast == cn],  int_len = 4, digits = 3, size = 12)
+#' Format the difference of LS means (SE) cell for one pairwise contrast.
+#' @param cn Contrast name.
+#' @return Character string "diff (SE)".
 d_of  <- function(cn) { r <- pw[pw$contrast == cn, ]
   sprintf("%s (%s)", num_fmt(r$estimate, int_len = 2, digits = 1, size = 4),
                      num_fmt(r$SE,       int_len = 1, digits = 2, size = 4)) }
+#' Format the 95% CI cell for one pairwise contrast.
+#' @param cn Contrast name.
+#' @return Character string "(lower;upper)".
 ci_of <- function(cn) { r <- pw[pw$contrast == cn, ]
   sprintf("(%s;%s)", num_fmt(r$lower.CL, int_len = 2, digits = 1, size = 4),
                      num_fmt(r$upper.CL, int_len = 1, digits = 1, size = 3)) }
 
+#' Build a blank spacer row for the results tibble.
+#' @return A one-row tibble of empty strings.
 blank <- function() tibble(row_label = "", res1 = "", res2 = "", res3 = "")
 final <- top_spacer(bind_rows(
   tibble(row_label = "LS Means (SE)", res1 = ls_of("Pbo"), res2 = ls_of("Xan_Lo"), res3 = ls_of("Xan_Hi")),

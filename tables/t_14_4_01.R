@@ -1,7 +1,7 @@
-# tables/t_14_4_01.R
-# Table 14-4.01 — Summary of Planned Exposure to Study Drug (Safety)
-# Descriptive (avg daily dose, cumulative dose) across 6 column groups:
-#   Completers at Week 24 (3 arms) | Safety Population (3 arms).
+# t_14_4_01.R
+# Table 14-4.01: Summary of Planned Exposure to Study Drug, as of End of Study   (Population: Safety)
+# Produces: outputs/14-4.01.docx
+# Source: ADSL; descriptive stats of AVGDD and CUMDOSE by arm x population (Completers / Safety).
 source("R/setup.R"); source("R/helpers.R")
 
 TABLE <- "14-4.01"; SOURCE <- "programs/t-14-4-01.R"
@@ -24,12 +24,17 @@ fs <- list(
   "Min"    = f_str("xxxxx.x",  "min"),
   "Max"    = f_str("xxxxx.x",  "max")
 )
+
+#' Build a descriptive-statistics block for one dose variable
+#' @param var Name of the numeric variable to summarize.
+#' @param label Label placed on the block's first row.
+#' @return A padded tibble with row labels and six result columns.
 dblock <- function(var, label) {
   b <- tplyr_build(tplyr_spec(cols = "TRTPCD",
          layers = tplyr_layers(group_desc(var,
            settings = layer_settings(format_strings = fs)))), adsl_)
   b <- b[order(b$ord_layer_1), , drop = FALSE]
-  rc <- grep("^res", names(b), value = TRUE)   # 6, factor order = GRP
+  rc <- grep("^res", names(b), value = TRUE)   # six result cols, in GRP factor order
   out <- tibble(rowlbl1 = "", rowlbl2 = as.character(b$rowlabel1))
   out$rowlbl1[1] <- label
   for (i in seq_along(rc)) out[[paste0("res", i)]] <- as.character(b[[rc[i]]])
@@ -61,16 +66,15 @@ ct <- clintable(final, use_labels = FALSE) |>
   flextable::set_table_properties(align = "center")
 ct <- add_titles_footnotes(ct, TABLE, source_path = SOURCE, date = FIDELITY_DATE)
 
-# This table underlines each spanner (Completers / Safety). Override the house
-# table default to add a rule under the spanner row for the data columns (the
-# default runs border_remove first, so it must be added inside the default fn).
+#' Apply the house table default and underline each spanner
+#' @param x A flextable to style.
+#' @param ... Unused; matches the `clinify_table_default` signature.
+#' @return The styled flextable.
 spanned_default <- function(x, ...) {
   x <- cdisc_table_default(x)
-  # Compact the multi-line arm labels. flextable/LibreOffice can't render header
-  # lines as tightly as the reference (~13pt/line) without text overlap, so a
-  # small residual header-rule offset remains (clinify multi-line-header-height
-  # limitation; see notes/feature-requests). 0.75 keeps the text clean.
+  # Compact the multi-line arm labels in the header.
   x <- flextable::line_spacing(x, space = 0.75, part = "header")
+  # Underline each spanner; done here because the default runs border_remove first.
   flextable::hline(x, i = 1, j = c("res1", "res2", "res3", "res4", "res5", "res6"),
                    border = officer::fp_border(color = "black", width = 1), part = "header")
 }

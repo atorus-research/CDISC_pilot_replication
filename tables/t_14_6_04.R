@@ -1,12 +1,14 @@
-# tables/t_14_6_04.R
-# Table 14-6.04 — Shifts of Lab Values During Treatment, threshold-categorized, by Visit (Safety)
-# Transposed shift: baseline status (Normal/High) is a COLUMN dimension crossed
-# with treatment; shift-to (n / Normal / High) are rows. Percentages are column-
-# wise (out of each baseline-group N) -> tplyr2 cols=c("TRTP","BNRIND") count.
-# (group_shift only offers a cols-total denominator - see notes/feature-requests.)
-source("R/setup.R"); source("R/helpers.R")
+# t_14_6_04.R
+# Table 14-6.04: Shifts of Laboratory Values During Treatment, Categorized Based on
+#                Threshold Ranges, by Visit   (Population: Safety)
+# Produces: outputs/14-6.04.docx
+# Source: adlbc + adlbh (adsl for arm Ns); tplyr2 group_shift column-% shift-to ANRIND
+#   by baseline BNRIND (Normal/High), per PARAM x visit.
+source("R/setup.R")
+source("R/helpers.R")
 
-TABLE <- "14-6.04"; SOURCE <- "programs/t-14-6.04.R"
+TABLE <- "14-6.04"
+SOURCE <- "programs/t-14-6.04.R"
 CHEM <- c("ALANINE AMINOTRANSFERASE","ALBUMIN","ALKALINE PHOSPHATASE","ASPARTATE AMINOTRANSFERASE",
   "BILIRUBIN","CALCIUM","CHLORIDE","CHOLESTEROL","CREATINE KINASE","CREATININE",
   "GAMMA GLUTAMYL TRANSFERASE","GLUCOSE","PHOSPHATE","POTASSIUM","PROTEIN","SODIUM","URATE","UREA NITROGEN")
@@ -45,10 +47,8 @@ comb <- bind_rows(read_adam("adlbc"), read_adam("adlbh")) |>
          ANRIND = factor(ANRIND, levels = c("N", "H")),
          BNRIND = factor(BNRIND, levels = c("N", "H")))
 
-# --- shift cells: n(%) shifting to each ANRIND, column-wise per (TRTP x BNRIND) baseline group.
-# Native group_shift with shift_denom="column": tplyr2 #30 scoped the column denominator within the
-# `by` groups (#28) and #32 made group_shift honor zero_count_display (#31), so this now yields both
-# the correct per-baseline-group % and the reference's bare "0". res columns come out TRTP x BNRIND
+# shift cells: n(%) shifting to each ANRIND, column-wise per (TRTP x BNRIND) baseline group.
+# group_shift with shift_denom = "column"; res columns come out TRTP x BNRIND
 # (Placebo|N, Placebo|H, Low|N, ...) in the same order as COLS.
 b <- tplyr_build(tplyr_spec(cols = "TRTP",
        layers = tplyr_layers(group_shift(c(row = "ANRIND", column = "BNRIND"), by = c("PARAM", "VISIT"),
@@ -56,20 +56,27 @@ b <- tplyr_build(tplyr_spec(cols = "TRTP",
            shift_denom = "column",
            format_strings = list(n_counts = f_str("xx(xxx%)", "n", "pct")),
            order_count_method = "byfactor", zero_count_display = "count_only")))), comb)
-rl <- grep("^rowlabel", names(b), value = TRUE); rc <- grep("^res", names(b), value = TRUE)  # PARAM,VISIT,ANRIND | 6
+rl <- grep("^rowlabel", names(b), value = TRUE)
+rc <- grep("^res", names(b), value = TRUE)   # PARAM,VISIT,ANRIND | 6
 shift <- tibble(PARAM = as.character(b[[rl[1]]]), VISIT = as.character(b[[rl[2]]]),
                 SHIFT = as.character(b[[rl[3]]]))
 for (i in seq_along(rc)) shift[[COLS[i]]] <- as.character(b[[rc[i]]])
 shift$SHIFT <- recode(shift$SHIFT, "N" = "Normal", "H" = "High")
 
-# --- n rows: baseline-group N per (PARAM, VISIT, TRTP, BNRIND) column
+# n rows: baseline-group N per (PARAM, VISIT, TRTP, BNRIND) column
 nrows <- comb |> count(PARAM, VISIT, TRTP, BNRIND, .drop = FALSE) |>
   mutate(col = paste(TRTP, BNRIND)) |>
   select(PARAM, VISIT, col, n) |> pivot_wider(names_from = col, values_from = n, values_fill = 0)
 nrows[COLS] <- lapply(nrows[COLS], function(x) sprintf("%2d", x))
-nrows$SHIFT <- "n"; nrows$PARAM <- as.character(nrows$PARAM); nrows$VISIT <- as.character(nrows$VISIT)
+nrows$SHIFT <- "n"
+nrows$PARAM <- as.character(nrows$PARAM)
+nrows$VISIT <- as.character(nrows$VISIT)
 
-# --- assemble per PARAM x VISIT: n, Normal, High(drop if all zero)
+# assemble per PARAM x VISIT: n, Normal, High (drop High if all zero)
+
+#' Test whether every shift cell is zero (blank or a formatted 0)
+#' @param v Character vector of formatted cells
+#' @return TRUE when all cells are " 0" / "0" / "  0"
 zero_cell <- function(v) all(v %in% c(" 0", "0", "  0"))
 acc <- list()
 for (pv in PARAM_ORDER) {
@@ -77,18 +84,24 @@ for (pv in PARAM_ORDER) {
     nr <- nrows |> filter(PARAM == pv, VISIT == vs)
     if (nrow(nr) == 0 || all(as.integer(sub("\\s", "", unlist(nr[COLS]))) == 0)) next
     sh <- shift |> filter(PARAM == pv, VISIT == vs)
-    normal <- sh |> filter(SHIFT == "Normal"); high <- sh |> filter(SHIFT == "High")
+    normal <- sh |> filter(SHIFT == "Normal")
+    high <- sh |> filter(SHIFT == "High")
     blk <- bind_rows(nr[, c("PARAM", "VISIT", "SHIFT", COLS)],
                      normal[, c("PARAM", "VISIT", "SHIFT", COLS)])
     if (nrow(high) && !zero_cell(unlist(high[COLS]))) blk <- bind_rows(blk, high[, c("PARAM", "VISIT", "SHIFT", COLS)])
-    blk$WEEK <- ""; blk$WEEK[1] <- sub("WEEK ", "", vs)
-    blk$LBL <- ""; if (vs == "WEEK 2") blk$LBL[1] <- pv
+    blk$WEEK <- ""
+    blk$WEEK[1] <- sub("WEEK ", "", vs)
+    blk$LBL <- ""
+    if (vs == "WEEK 2") blk$LBL[1] <- pv
     acc[[length(acc) + 1]] <- blk
   }
 }
 body <- bind_rows(acc)
 
-# section headers
+#' Build a two-line section-header block spanning the full stub width
+#' @param t1 First header line (e.g. "CHEMISTRY")
+#' @param t2 Second header line (e.g. "----------")
+#' @return A two-row tibble with blank value cells
 sec <- function(t1, t2) tibble(LBL = c(t1, t2), WEEK = "", SHIFT = "",
   !!!setNames(rep(list(""), 6), COLS))
 first_hem <- min(which(body$LBL %in% HEM))
@@ -99,10 +112,18 @@ final <- bind_rows(
   sec("HEMATOLOGY", "----------"),
   body[first_hem:nrow(body), ]
 ) |> select(LBL, WEEK, SHIFT, all_of(COLS))
-final[] <- lapply(final, function(x) { x[is.na(x)] <- ""; as.character(x) })
+final[] <- lapply(final, function(x) {
+  x[is.na(x)] <- ""
+  as.character(x)
+})
 
-# --- render: 3-row header (arm spanner x baseline), spanner underlines
+# render: 3-row header (arm spanner x baseline), spanner underlines
 Ns <- read_adam("adsl") |> filter(ARM != "Screen Failure") |> count(TRT01P) |> deframe()
+
+#' Format an arm spanner label with its N
+#' @param short Short arm label
+#' @param arm Full arm name for the N lookup
+#' @return "short (N=n)"
 arm_hdr <- function(short, arm) sprintf("%s (N=%s)", short, Ns[[arm]])
 ct <- clintable(final, use_labels = FALSE) |>
   clin_column_headers(
@@ -122,8 +143,15 @@ ct <- clintable(final, use_labels = FALSE) |>
   flextable::width(j = "SHIFT", width = 0.588) |>
   flextable::width(j = COLS, width = 0.84)
 ct <- add_titles_footnotes(ct, TABLE, source_path = SOURCE)
-sd <- function(x, ...) { x <- cdisc_table_default(x)
-  flextable::hline(x, i = 1, j = 4:9, border = officer::fp_border(color = "black", width = 1), part = "header") }
+
+#' Apply the house default plus a solid underline beneath each arm spanner
+#' @param x A flextable
+#' @param ... Unused
+#' @return The styled flextable
+sd <- function(x, ...) {
+  x <- cdisc_table_default(x)
+  flextable::hline(x, i = 1, j = 4:9, border = officer::fp_border(color = "black", width = 1), part = "header")
+}
 old <- options(clinify_table_default = sd)
 write_clindoc(ct, file.path(OUTPUT_DIR, paste0(TABLE, ".docx")))
 options(old)

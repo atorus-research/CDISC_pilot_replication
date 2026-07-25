@@ -1,12 +1,13 @@
-# tables/t_14_6_01.R
-# Table 14-6.01 — Summary Statistics for Continuous Laboratory Values (Safety)
-# Wide TRANSPOSED descriptive: visits down the stub; per arm three stat columns
-# (N | Mean (SD) | Change-from-Baseline Mean (SD)). tplyr2 group_desc is the summary
-# engine (AVAL n+mean_sd, CHG mean_sd, cols=TRTP); the transposed 9-column layout is
-# assembled here (group_desc lays stats out as rows, not columns).
-source("R/setup.R"); source("R/helpers.R")
+# t_14_6_01.R
+# Table 14-6.01: Summary Statistics for Continuous Laboratory Values   (Population: Safety)
+# Produces: outputs/14-6.01.docx
+# Source: adlbc/adlbh (adsl for arm Ns); tplyr2 group_desc mean(SD) of AVAL & CHG by
+#   visit, assembled here into transposed per-arm N | Mean (SD) | Change columns.
+source("R/setup.R")
+source("R/helpers.R")
 
-TABLE <- "14-6.01"; SOURCE <- "programs/t-14-6-01.R"
+TABLE <- "14-6.01"
+SOURCE <- "programs/t-14-6-01.R"
 ARM <- c("Placebo", "Xanomeline Low Dose", "Xanomeline High Dose")
 VISN <- c(0, 2, 4, 6, 8, 12, 16, 20, 24, 26, 99)
 VISLAB <- c("Bsln", "Wk 2", "Wk 4", "Wk 6", "Wk 8", "Wk 12", "Wk 16", "Wk 20",
@@ -30,6 +31,11 @@ HEM_RC <- c(
   "Lymphocytes (GI/L)"="LYMPHOCYTES","Monocytes (GI/L)"="MONOCYTES","Platelet (GI/L)"="PLATELET")
 HEM_DROP <- c("Anisocytes","Poikilocytes","Microcytes","Macrocytes","Polychromasia")
 
+#' Read and filter a lab ADaM to the safety population and analysis visits
+#' @param name ADaM dataset name (without extension)
+#' @param recode_map Named vector remapping PARAM to short display labels
+#' @param drop Character vector of PARAM values to exclude
+#' @return A filtered, recoded lab data frame
 read_lab <- function(name, recode_map, drop = character()) {
   read_adam(name) |>
     filter(SAFFL == "Y", (AVISITN != 99 | (AVISITN == 99 & AENTMTFL == "Y")),
@@ -37,27 +43,38 @@ read_lab <- function(name, recode_map, drop = character()) {
     mutate(PARAM = recode(PARAM, !!!recode_map))
 }
 
-# --- tplyr2 mean(SD) stats, reshaped to per-(PARAM, AVISITN) wide triplets per arm.
-# N is the RECORD count at the visit (matches the reference's n()); tplyr2's built-in
-# "n" statistic counts non-missing AVAL instead, which differs by 1-2 for the handful of
-# Bilirubin/Glucose visits with an assessed-but-missing value. "N = subjects assessed at
-# the visit" is the reference's (defensible) definition, so we reproduce it directly.
+#' Extract PARAM/visit labels and the three arm stat columns from a tplyr2 build
+#' @param b A tplyr2 build data frame
+#' @return A tibble with PARAM, AVISITN and the c1/c2/c3 stat cells
 extract <- function(b) {
-  rl <- grep("^rowlabel", names(b), value = TRUE); rc <- grep("^res", names(b), value = TRUE)
+  rl <- grep("^rowlabel", names(b), value = TRUE)
+  rc <- grep("^res", names(b), value = TRUE)
   tibble(PARAM = as.character(b[[rl[1]]]), AVISITN = as.integer(as.character(b[[rl[2]]])),
          c1 = as.character(b[[rc[1]]]), c2 = as.character(b[[rc[2]]]), c3 = as.character(b[[rc[3]]]))
 }
-blank_if_empty <- function(x) ifelse(grepl("[0-9]", x), x, "")  # "(      )" / "" -> ""
-# (tplyr2 #29/#30 now normalizes a rounded -0 to 0, so the former fix_neg_zero() gsub is gone.)
 
+#' Blank out a stat cell that contains no digits (e.g. "(      )")
+#' @param x Character vector of formatted stat cells
+#' @return `x` with non-numeric entries replaced by ""
+blank_if_empty <- function(x) ifelse(grepl("[0-9]", x), x, "")
+
+#' Build the wide per-arm stat block for one lab section
+#' @param dat Prepared lab records for the section
+#' @param params Character vector of PARAM values in display order
+#' @return A wide tibble of N / Mean (SD) / Change cells per arm and PARAM x visit
 section_wide <- function(dat, params) {
   dat <- dat |> mutate(TRTP = factor(TRTP, levels = ARM),
                        PARAM = factor(PARAM, levels = params),
                        AVISITN = factor(AVISITN, levels = VISN))
+  #' Summarise one variable to mean (SD) by PARAM and visit via tplyr2
+  #' @param var Variable to summarise (AVAL or CHG)
+  #' @return A tibble of formatted mean (SD) cells per arm
   msd <- function(var) extract(tplyr_build(tplyr_spec(cols = "TRTP", layers = tplyr_layers(
     group_desc(var, by = c("PARAM", "AVISITN"), settings = layer_settings(
       format_strings = list(mean_sd = f_str("xxx.x (xxx.xx)", "mean", "sd")))))), dat))
-  MA <- msd("AVAL"); MC <- msd("CHG")
+  MA <- msd("AVAL")
+  MC <- msd("CHG")
+  # N is the record count at each visit (reference definition), not tplyr2's non-missing-AVAL count
   Ncnt <- dat |> count(PARAM, AVISITN, TRTP, .drop = FALSE) |>
     mutate(PARAM = as.character(PARAM), AVISITN = as.integer(as.character(AVISITN)),
            TRTP = c(P = "P", L = "L", H = "H")[match(TRTP, ARM)]) |>
@@ -66,7 +83,8 @@ section_wide <- function(dat, params) {
     left_join(Ncnt, by = c("PARAM", "AVISITN"))
   arms <- c("P", "L", "H")
   for (i in seq_along(arms)) {
-    a <- arms[i]; ci <- paste0("c", i)
+    a <- arms[i]
+    ci <- paste0("c", i)
     n <- w[[paste0(a, "_N")]]
     w[[paste0(a, "_N")]] <- ifelse(n == 0, "", sprintf("%2d", n))
     w[[paste0(a, "_M")]] <- ifelse(n == 0, "", blank_if_empty(w[[paste0(ci, "_A")]]))
@@ -75,8 +93,16 @@ section_wide <- function(dat, params) {
   w
 }
 
+#' Build a full-width spacer/label row with blank value cells
+#' @param lbl Text for the VISIT (stub) column
+#' @return A one-row tibble with `lbl` in VISIT and "" in all value columns
 blank_row <- function(lbl = "") tibble(VISIT = lbl, !!!setNames(rep(list(""), 9), COLS))
 
+#' Assemble a section into stacked header / value / spacer rows
+#' @param section_label Section heading text (e.g. "CHEMISTRY")
+#' @param wide Wide stat block from `section_wide()`
+#' @param params Character vector of PARAM values in display order
+#' @return A tibble of body rows for the section
 assemble <- function(section_label, wide, params) {
   out <- list(blank_row(section_label))
   for (p in params) {
@@ -93,22 +119,29 @@ assemble <- function(section_label, wide, params) {
 
 chem <- read_lab("adlbc", CHEM_RC)
 hema <- read_lab("adlbh", HEM_RC, drop = HEM_DROP)
-chem_p <- sort(unique(chem$PARAM)); hema_p <- sort(unique(hema$PARAM))
+chem_p <- sort(unique(chem$PARAM))
+hema_p <- sort(unique(hema$PARAM))
 
 final <- bind_rows(
   assemble("CHEMISTRY",  section_wide(chem, chem_p), chem_p),
   assemble("HEMATOLOGY", section_wide(hema, hema_p), hema_p)
 ) |> select(VISIT, all_of(COLS))
-final[] <- lapply(final, function(x) { x[is.na(x)] <- ""; as.character(x) })
-# drop trailing all-blank spacer rows (assemble() ends each param with a blank row; the last
-# one spilled a header-only empty page 18). Keep interior spacers.
+final[] <- lapply(final, function(x) {
+  x[is.na(x)] <- ""
+  as.character(x)
+})
+# drop trailing all-blank spacer rows; keep interior spacers
 final <- final[seq_len(max(which(rowSums(final != "") > 0))), , drop = FALSE]
 
 # rows whose label spans the full width (section + param headers): unindented, no values
 merge_rows <- which(final$VISIT != "" & !startsWith(final$VISIT, "  "))
 
-# --- render: spanner + multi-line label header; dashed spanner underline
+# render: spanner + multi-line label header; dashed spanner underline
 Ns <- read_adam("adsl") |> filter(ARM != "Screen Failure") |> count(TRT01P) |> deframe()
+
+#' Return an arm spanner label unchanged
+#' @param arm Arm label
+#' @return `arm`
 spn <- function(arm) arm
 ct <- clintable(final, use_labels = FALSE) |>
   clin_column_headers(
@@ -126,12 +159,19 @@ ct <- clintable(final, use_labels = FALSE) |>
 for (r in merge_rows) ct <- flextable::merge_at(ct, i = r, j = 1:10, part = "body")
 ct <- add_titles_footnotes(ct, TABLE, source_path = SOURCE)
 
-# dashed underline beneath each arm spanner (header row 1); tighten L/R padding so the
-# 14-char "xxx.x (xxx.xx)" cells fit 1.24" columns without wrapping (9" landscape budget)
-sd <- function(x, ...) { x <- cdisc_table_default(x)
+#' Apply the house default plus a dashed spanner underline and tight cell padding
+#' @param x A flextable
+#' @param ... Unused
+#' @return The styled flextable
+#'
+#' Padding is tightened so the 14-char "xxx.x (xxx.xx)" cells fit the 1.24" columns
+#' without wrapping; the dashed rule underlines each arm spanner (header row 1).
+sd <- function(x, ...) {
+  x <- cdisc_table_default(x)
   x <- flextable::padding(x, padding.left = 1, padding.right = 1, part = "all")
   flextable::hline(x, i = 1, j = 2:10,
-    border = officer::fp_border(color = "black", width = 1, style = "dashed"), part = "header") }
+    border = officer::fp_border(color = "black", width = 1, style = "dashed"), part = "header")
+}
 old <- options(clinify_table_default = sd)
 write_clindoc(ct, file.path(OUTPUT_DIR, paste0(TABLE, ".docx")))
 options(old)

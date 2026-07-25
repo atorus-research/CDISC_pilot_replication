@@ -1,14 +1,7 @@
-# tables/t_14_7_02.R
-# Table 14-7.02 — Summary of Vital Signs Change from Baseline at End of Treatment (Safety)
-# Same wide-stub descriptive layout as 14-7.01 (Measure/Position/Treatment/Planned
-# Relative Time down the stub; n/Mean/SD/Median/Min/Max across), but the summarized
-# value is change-from-baseline CHG and only two relative times appear (Week 24, End of
-# Trt.) — there is no Baseline block. Population is SAFFL=="Y" with a non-missing BASE.
-# tplyr2 group_desc is the summary engine (CHG, na.rm via tplyr2); stats emitted as rows
-# are pivoted to columns, repeated stub labels blanked, spacer row after each block.
-# Multi-page -> verified by pagination-agnostic CONTENT (text-set).
-#
-# EOT = ADVS "End of Treatment" derived visit, used as-is (see report re: EOT-flag).
+# t_14_7_02.R
+# Table 14-7.02: Summary of Vital Signs Change from Baseline at End of Treatment   (Population: Safety)
+# Produces: outputs/14-7.02.docx
+# Source: ADVS change-from-baseline (CHG) at Week 24/End of Treatment summarized with tplyr2 group_desc; ADSL for arm N.
 source("R/setup.R"); source("R/helpers.R")
 
 TABLE <- "14-7.02"; SOURCE <- "programs/t-14-7.02.R"
@@ -35,6 +28,9 @@ advs <- advs |>
   mutate(PARAM = recode(PARAM, "Pulse Rate (beats/min)" = "Pulse (bpm)"),
          PRTFL = if_else(EOTFL, "End of Trt.", "Week 24"))
 
+#' Summarize CHG into six stat columns per PARAM/ATPT/TRTP/PRTFL
+#' @param dat ADVS rows to summarize
+#' @return A wide tibble with one row per group and n/Mean/SD/Median/Min./Max. columns
 build_wide <- function(dat) {
   dat$ALL <- "x"
   b <- tplyr_build(tplyr_spec(cols = "ALL", layers = tplyr_layers(
@@ -45,11 +41,7 @@ build_wide <- function(dat) {
               TRTP = as.character(rowlabel3), PRTFL = as.character(rowlabel4),
               stat = as.character(rowlabel5), val = as.character(res1)) |>
     tidyr::pivot_wider(names_from = stat, values_from = val)
-  # n = record count at the visit (the reference's n()), NOT tplyr2's non-missing-CHG
-  # count. They differ by 1 for the two Xan.High EOT groups that have an assessed record
-  # with a missing value: the legacy counted the record in n() but excluded it from the
-  # na.rm stats. Reproduce the record-count n directly; Mean/SD/... stay tplyr2 (na.rm),
-  # same convention as the legacy (and as documented for 14-6.01's N).
+  # n is the record count at each visit (not the non-missing-CHG count); Mean/SD/... drop NA.
   cnt <- dat |> count(PARAM, ATPT, TRTP, PRTFL, name = "nrec")
   wide |> left_join(cnt, by = c("PARAM", "ATPT", "TRTP", "PRTFL")) |>
     mutate(n = as.character(nrec)) |> select(-nrec)

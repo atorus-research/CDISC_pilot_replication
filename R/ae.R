@@ -1,15 +1,10 @@
-# R/ae.R
-# -----------------------------------------------------------------------------
-# Reusable builder for the AE-incidence-by-SOC/Preferred-Term tables
-# (14-5.01 all TEAEs; 14-5.02 serious TEAEs).
-#
-# tplyr2 nested group_count + stat_columns -> paired n(%) / [AEs] columns per arm
-# and the "ANY BODY SYSTEM" total row (factor-ordered columns, native bare-count
-# on zero). Then: re-sort PTs within SOC by descending High-dose count, inject
-# per-row Fisher's exact p-values, blank [AEs] on zero, insert per-SOC spacers,
-# and render with a 2-row spanned header repeated on each page.
-# -----------------------------------------------------------------------------
+# R/ae.R — build the AE-incidence-by-SOC/preferred-term tables (all and serious TEAEs)
 
+#' Build and write an AE-incidence-by-SOC/preferred-term table
+#' @param table Table id (e.g. "14-5.01")
+#' @param source_path Source program path shown in the footer
+#' @param serious Restrict to serious TEAEs (AESER == "Y")
+#' @return The assembled table data frame (invisibly); writes the .docx as a side effect
 build_ae_table <- function(table, source_path, serious = FALSE) {
   ARMS <- c("Placebo", "Xanomeline Low Dose", "Xanomeline High Dose")
   adae <- read_adam("adae") |> filter(SAFFL == "Y", TRTEMFL == "Y")
@@ -33,6 +28,9 @@ build_ae_table <- function(table, source_path, serious = FALSE) {
   b <- tplyr_build(spec, adae, pop_data = adsl)
   rc <- grep("^res", names(b), value = TRUE)   # res1..res6, factor-ordered
 
+  #' Parse the leading integer count out of an "n (xx.x%)" cell
+  #' @param s Character vector of formatted count cells
+  #' @return Integer vector of leading counts (NA when absent)
   lead_int <- function(s) suppressWarnings(as.integer(sub("^\\s*([0-9]+).*$", "\\1", s)))
   d <- tibble(
     soc = as.character(b$rowlabel1), pt = as.character(b$rowlabel2), depth = b$ord_layer_2,
@@ -44,6 +42,12 @@ build_ae_table <- function(table, source_path, serious = FALSE) {
     mutate(soc_rank = if_else(depth == 0, 0L, 1L), soc_key = if_else(depth == 0, "", soc)) |>
     arrange(soc_rank, soc_key, depth, desc(n81), pt)
 
+  #' Compute a formatted Fisher's exact p-value for one AE row
+  #' @param n_p Placebo count
+  #' @param n_a Active-arm count
+  #' @param N_p Placebo population size
+  #' @param N_a Active-arm population size
+  #' @return Character scalar ("" when both counts are 0; trailing "*" flags p < .15)
   fisher_ae <- function(n_p, n_a, N_p, N_a) {
     if ((n_p + n_a) == 0) return("")
     p <- fisher.test(matrix(c(n_p, n_a, N_p - n_p, N_a - n_a), nrow = 2))$p.value
@@ -73,6 +77,10 @@ build_ae_table <- function(table, source_path, serious = FALSE) {
   }
   final <- top_spacer(bind_rows(acc) |> select(-grp))
 
+  #' Build a wrapped arm column header
+  #' @param arm Arm name
+  #' @param n Population count
+  #' @return Character scalar column label
   hdr <- function(arm, n) arm_label(arm, n)
   ct <- clintable(final, use_labels = FALSE) |>
     clin_column_headers(
