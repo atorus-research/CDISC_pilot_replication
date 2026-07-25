@@ -1,0 +1,79 @@
+# tables/t_14_4_01.R
+# Table 14-4.01 — Summary of Planned Exposure to Study Drug (Safety)
+# Descriptive (avg daily dose, cumulative dose) across 6 column groups:
+#   Completers at Week 24 (3 arms) | Safety Population (3 arms).
+source("R/setup.R"); source("R/helpers.R")
+
+TABLE <- "14-4.01"; SOURCE <- "programs/t-14-4-01.R"
+GRP <- c("0_C", "54_C", "81_C", "0_S", "54_S", "81_S")
+
+adsl <- read_adam("adsl")
+compl  <- adsl |> filter(COMP24FL == "Y") |>
+  transmute(AVGDD, CUMDOSE, TRTPCD = paste0(TRT01PN, "_C"))
+safety <- adsl |> filter(SAFFL == "Y") |>
+  transmute(AVGDD, CUMDOSE, TRTPCD = paste0(TRT01PN, "_S"))
+adsl_ <- bind_rows(compl, safety) |> mutate(TRTPCD = factor(TRTPCD, levels = GRP))
+Ns <- adsl_ |> count(TRTPCD, .drop = FALSE) |> deframe()
+
+# dose values are large (cumulative up to thousands) -> int width 5
+fs <- list(
+  "n"      = f_str("xxxxx",    "n"),
+  "Mean"   = f_str("xxxxx.x",  "mean"),
+  "SD"     = f_str("xxxxx.xx", "sd"),
+  "Median" = f_str("xxxxx.x",  "median"),
+  "Min"    = f_str("xxxxx.x",  "min"),
+  "Max"    = f_str("xxxxx.x",  "max")
+)
+dblock <- function(var, label) {
+  b <- tplyr_build(tplyr_spec(cols = "TRTPCD",
+         layers = tplyr_layers(group_desc(var,
+           settings = layer_settings(format_strings = fs)))), adsl_)
+  b <- b[order(b$ord_layer_1), , drop = FALSE]
+  rc <- grep("^res", names(b), value = TRUE)   # 6, factor order = GRP
+  out <- tibble(rowlbl1 = "", rowlbl2 = as.character(b$rowlabel1))
+  out$rowlbl1[1] <- label
+  for (i in seq_along(rc)) out[[paste0("res", i)]] <- as.character(b[[rc[i]]])
+  pad_row(out)
+}
+
+final <- top_spacer(bind_rows(
+  dblock("AVGDD",   "Average daily dose (mg)"),
+  dblock("CUMDOSE", "Cumulative dose at end of study [2]")))
+
+sp_c <- "Completers at Week 24"; sp_s <- "Safety Population [1]"
+ct <- clintable(final, use_labels = FALSE) |>
+  clin_column_headers(
+    rowlbl1 = "", rowlbl2 = "",
+    res1 = c(sp_c, arm_label("Placebo", Ns[["0_C"]])),
+    res2 = c(sp_c, arm_label("Xanomeline Low Dose",  Ns[["54_C"]])),
+    res3 = c(sp_c, arm_label("Xanomeline High Dose", Ns[["81_C"]])),
+    res4 = c(sp_s, arm_label("Placebo", Ns[["0_S"]])),
+    res5 = c(sp_s, arm_label("Xanomeline Low Dose",  Ns[["54_S"]])),
+    res6 = c(sp_s, arm_label("Xanomeline High Dose", Ns[["81_S"]]))) |>
+  flextable::valign(part = "header", valign = "bottom") |>
+  flextable::align(part = "header", align = "center") |>
+  flextable::align(j = c("rowlbl1", "rowlbl2"), part = "header", align = "left") |>
+  flextable::align(part = "body", align = "left") |>
+  flextable::width(j = "rowlbl1", width = 3.24) |>
+  flextable::width(j = "rowlbl2", width = 0.63) |>
+  flextable::width(j = c("res1", "res4"), width = 0.9) |>
+  flextable::width(j = c("res2", "res3", "res5", "res6"), width = 0.99) |>
+  flextable::set_table_properties(align = "center")
+ct <- add_titles_footnotes(ct, TABLE, source_path = SOURCE, date = FIDELITY_DATE)
+
+# This table underlines each spanner (Completers / Safety). Override the house
+# table default to add a rule under the spanner row for the data columns (the
+# default runs border_remove first, so it must be added inside the default fn).
+spanned_default <- function(x, ...) {
+  x <- cdisc_table_default(x)
+  # Compact the multi-line arm labels. flextable/LibreOffice can't render header
+  # lines as tightly as the reference (~13pt/line) without text overlap, so a
+  # small residual header-rule offset remains (clinify multi-line-header-height
+  # limitation; see notes/feature-requests). 0.75 keeps the text clean.
+  x <- flextable::line_spacing(x, space = 0.75, part = "header")
+  flextable::hline(x, i = 1, j = c("res1", "res2", "res3", "res4", "res5", "res6"),
+                   border = officer::fp_border(color = "black", width = 1), part = "header")
+}
+old <- options(clinify_table_default = spanned_default)
+write_clindoc(ct, file.path(OUTPUT_DIR, paste0(TABLE, ".docx")))
+options(old)

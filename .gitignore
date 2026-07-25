@@ -3,3 +3,9 @@
 .RData
 .Ruserdata
 /data
+
+# next-gen rebuild: generated build artifacts & scratch (regenerable)
+/outputs
+verify/_artifacts/
+**/__pycache__/
+*.pyc
