@@ -1,7 +1,14 @@
-# Revisit list — deferred work waiting on upstream (tplyr2 / clinify) or a merge
+# Revisit list — upstream (tplyr2 / clinify) follow-ups
 
-Things intentionally left with a workaround, to be simplified once the dependency lands.
-Check this file when a tplyr2/clinify release or PR merges.
+**STATUS (2026-07-25): CLOSED OUT.** Every tplyr2 finding is resolved and applied (native
+group_shift, negative-zero, byfactor/ordering, stats_as_columns, denoms_by). Every clinify finding
+is resolved and either applied (merge control, per-line title align, clin_row_height) or consciously
+NOT adopted with a documented reason (clin_header_pad — see #97). All 30 tables build clean and match
+the references (bar documented deliberate divergences); the rebuild is in **draft PR #8**
+(`nextgen → master`). The only work remaining is **version-pin housekeeping** (see the bottom):
+repin tplyr2/clinify to release tags once they cut to `main`, then `renv::snapshot`.
+
+Originally: a log of things left with a workaround, to be simplified once each dependency landed.
 
 ## PR outcomes (assessed 2026-07-24 — tplyr2 PR #21 merged to main; clinify PR #96 on gh_issue_95)
 
@@ -30,20 +37,21 @@ parsing `"x | stat"` labels. Left as-is; fix is validated for future use.
 
 ## Filed FRs — outcomes
 
-### clinify #97 — regulatory-fidelity vertical rendering  [clin_row_height ADOPTED; clin_header_pad NOT adoptable]
-Both verbs shipped (`clin_row_height`, `clin_header_pad`) on `development`.
-- **`clin_row_height` (item 1) ADOPTED (2026-07-25):** removed the per-styler `hrule("atleast") +
-  height_all()` from all three stylers (`cdisc_table_default`/`titles`/`footnotes`); one central
-  `clin_row_height(body=15.35, title=11.4, footnote=11.4, rule="atleast", unit="pt")` in
-  `add_titles_footnotes()`. All 30 rebuilt, ZERO change vs baseline. It also reaches the title/footnote
-  blocks natively (which the option stylers already did for us, but this is the intended path).
-- **`clin_header_pad` (items 2/3) NOT adoptable — reverted.** Its `above=` pads only the TOP header
-  edge, but our multi-row spanned headers (14-1.03, 14-3.10, 14-4.01, 14-6.05, shift tables) rely on
-  `padding.top` on EVERY header row. Adopting it regressed all of those — **14-1.03 went 2.408→2.523%
-  (over the 2.5% gate)**, 14-3.10 0.336→2.001%, 14-4.01 1.122→1.679%, 14-6.05 content +3. So we KEEP
-  the `padding.top=18`-on-all-header-rows buffer (works for all 30). **Finding for the maintainer:**
-  `clin_header_pad` only spaces the 3 outer edges of the header block; it can't reproduce per-header-row
-  spacing that multi-row spanned headers need. Report on #97.
+### clinify #97 — regulatory-fidelity vertical rendering  [clin_row_height ADOPTED; clin_header_pad NOT adopted — FINAL]
+Both verbs shipped on `development` (`clin_row_height` in #100; `clin_header_pad` in #100→#102).
+- **`clin_row_height` ADOPTED (2026-07-25):** removed the per-styler `hrule("atleast") + height_all()`
+  from all three stylers; one central `clin_row_height(body=15.35, title=11.4, footnote=11.4,
+  rule="atleast", unit="pt")` in `add_titles_footnotes()`. All 30 rebuilt, ZERO change vs baseline.
+- **`clin_header_pad` NOT adopted (tested #100 AND the #102 redesign; both reverted).** #102 made
+  `above`/`below` space EVERY header row (fixing the uniform multi-row case — 28/30 then matched). But
+  two tables need NON-uniform per-row header padding that clin_header_pad's uniform args can't express:
+  **14-1.03** (34pt above row 2 only, spanner→label gap) and **14-3.10** (21pt above row 1 only, to land
+  the header rule at the reference y). Those fall to `flextable::padding(i=)`, but `clin_header_pad` is
+  per-table config applied at `finish_table_()` *after* the styler, so a central call CLOBBERS the
+  per-row `flextable::padding(i=)` (14-1.03 → 2.761%, 14-3.10 → 2.443%). So the pilot KEEPS the uniform
+  buffer as `flextable::padding(padding.top=18, padding.bottom=4, part="header")` in the house styler
+  (composes with the per-row exceptions). Reported both findings on #97 (comments); no further action
+  our side — clin_row_height is the win, header padding stays styler-level.
 
 ### clinify #98 — table alignment + per-line title alignment  [title-align APPLIED]
 PR #99 fixed the `set_table_properties` clobber AND added `clin_table_align()` + per-line title
@@ -78,20 +86,16 @@ score, prefers the SMALLEST displacement — so a periodic grid's full-row-off s
 longer wins over the true near-zero shift. No-op for tables with a single clear peak. Re-swept all
 30: 15/16 pixel identical, 14-1.03 +0.01% (2.398->2.408, still PASS), 14/14 content unchanged.
 
-## Housekeeping / version pins
-- **CURRENT INSTALLS (2026-07-25 pm):** tplyr2 `atorus-research/tplyr2@issue-31-shift-zero-display`
-  (PR #32 branch = main + #31/#32 fix; **repin to `@main` once #32 merges**); clinify
-  `atorus-research/clinify@gh_issue_98` (v0.4.0, has #95/#96 + #99/#100 = merge control, align,
-  clin_table_align, clin_row_height, per-line title align). Reinstall from released tags once cut.
-- **tplyr2 (earlier note):** was installed from **GitHub `atorus-research/tplyr2@main`**
-  (renv record is a clean github ref, not a local path). main now contains everything we need:
-  PR #21 (#18/#19/#20), #23 (group_desc by-group order), #25 (group_count by-group order +
-  total/missing with by, #24), and **#27 (byfactor + nested target ordering, #16 — supersedes the
-  stale #17)**. The old local combined branch is DELETED (no longer needed). Full 30-table
-  rebuild+sweep on this main = zero change vs baseline.
-- **clinify (installed 2026-07-24):** v0.4.0 from local clone on `gh_issue_95` (PR #96, base
-  `development`, still OPEN). Reinstall from a released tag/main once #96 merges.
-- renv.lock still out of sync (not snapshotted); pin/snapshot once clinify #96 lands on a release.
+## Housekeeping / version pins — the ONLY things still open
+- **tplyr2** installed from `atorus-research/tplyr2@issue-31-shift-zero-display` (PR #32 branch =
+  main + #31/#32). main already carries #21/#23/#25/#27 (shift denom, by-group ordering, byfactor).
+  **➜ Repin to `@main` once #32 merges.**
+- **clinify** installed from `atorus-research/clinify@development` (v0.4.0): #95/#96 merge control,
+  #98/#99 alignment + per-line title align, #97/#100 clin_row_height, #97/#102 clin_header_pad.
+  **➜ Repin to a release tag once `development` ships to `main`.**
+- **renv.lock** references these dev/PR branches and is not snapshotted. **➜ Snapshot/pin once both
+  packages cut releases to main.** (Nothing functional depends on this — the installed builds are
+  correct and the full suite is green; it's purely reproducibility hygiene for the lockfile.)
 
 ## Resolved (kept for provenance — no action)
 - tplyr2 #13/#14 (count column order + display quirks) — merged in PR #15, incorporated;

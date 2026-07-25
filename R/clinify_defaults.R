@@ -65,11 +65,12 @@ cdisc_table_default <- function(x, ...) {
   # header block matches the reference's compact buffer + label rows.
   x <- flextable::line_spacing(x, space = 1, part = "all")
   x <- flextable::padding(x, padding.top = 0, padding.bottom = 0, part = "body")
-  # Header buffer: the reference used set_column_header_buffer(top=1), leaving ~15pt of space
-  # above the column labels. Reproduce with header top padding on EVERY header row -- our
-  # multi-row spanned headers (shift tables, 14-6.01, 14-4.01, 14-1.03) rely on this per-row
-  # spacing, which clinify's clin_header_pad() (top-edge-only `above`) does NOT reproduce
-  # (it regressed those tables; 14-1.03 to 2.52% > gate). So we keep the padding approach.
+  # Header buffer: ~15pt of space above the column labels (reference's set_column_header_buffer),
+  # applied to every header row via flextable padding. NOT via clinify's clin_header_pad(): #102
+  # made above/below uniform per-row (good), but two tables need NON-uniform per-row header padding
+  # for fidelity -- 14-1.03 (34pt on row 2, spanner->label gap) and 14-3.10 (21pt on row 1, to align
+  # the header rule at the reference y) -- and clin_header_pad's config precedence clobbers their
+  # per-table flextable::padding(i=). So we keep the styler padding, which composes with those. (#97)
   x <- flextable::padding(x, padding.top = 18, padding.bottom = 4, part = "header")
   # House row pitch (body/title/footnote) is set once, centrally, via clinify's
   # clin_row_height() in add_titles_footnotes() (clinify #97) - it replaces the former
