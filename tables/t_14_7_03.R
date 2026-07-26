@@ -81,10 +81,11 @@ final <- bind_rows(
   assemble(wt_wide,  "Weight (kg)",             c("Baseline", "Week 24", "End of Trt.")),
   assemble(chg_wide, "Weight Change\nfrom Baseline", c("Week 24", "End of Trt."))
 ) |> select(Measure, Treatment, N, PRT, all_of(COLS))
-final[] <- lapply(final, function(x) { x[is.na(x)] <- ""; as.character(x) })
 
 # render: single-row header; arms down the stub, stats centered across.
-ct <- clintable(final, use_labels = FALSE) |>
+# coerce_character=TRUE coerces every column to character before building and
+# renders NA blank (flextable default na_str), replacing the manual NA->"" pass.
+ct <- clintable(final, use_labels = FALSE, coerce_character = TRUE) |>
   clin_column_headers(
     Measure = "Measure", Treatment = "Treatment", N = "N",
     PRT = "Planned Relative Time",

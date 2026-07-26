@@ -66,10 +66,11 @@ final <- top_spacer(bind_rows(
   tibble(row_label = c("p-value(Xan High - Xan Low)", "  Diff of LS Means (SE)", "  95% CI"),
          res1 = "", res2 = "",
          res3 = c(p_of("Xan_Hi - Xan_Lo"), d_of("Xan_Hi - Xan_Lo"), ci_of("Xan_Hi - Xan_Lo")))))
-final[] <- lapply(final, function(x) { attr(x, "label") <- NULL; as.character(x) })
 cat("\n===== 14-3.11 (mmrm) =====\n"); print(as.data.frame(final))
 
-ct <- clintable(final, use_labels = FALSE) |>
+# clinify coerces every column to character before building (coerce_character);
+# NA renders blank and body alignment is set explicitly below.
+ct <- clintable(final, use_labels = FALSE, coerce_character = TRUE) |>
   clin_column_headers(
     row_label = "",
     res1 = arm_label("Placebo", hn[["Placebo"]]),

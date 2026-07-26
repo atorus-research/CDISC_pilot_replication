@@ -24,11 +24,13 @@ adsl0 <- read_adam("adsl") |>
     AGEGR1   = paste(AGEGR1, "yrs")
   )
 
-# 3-arm frame for p-values; +Total frame for display
+# 3-arm frame for p-values; display frame carries factor levels for row/column ordering.
+# The "Total" column is emitted natively via total_group() in the block builders below,
+# replacing a manual bind_rows(adsl0, mutate(adsl0, TRT01P = "Total")) row-duplication.
 adsl3 <- adsl0
-adslT <- bind_rows(adsl0, mutate(adsl0, TRT01P = "Total")) |>
+adslG <- adsl0 |>
   mutate(
-    TRT01P       = factor(TRT01P, levels = ARMS),
+    TRT01P       = factor(TRT01P, levels = ARMS[1:3]),
     AGEGR1       = factor(AGEGR1,   levels = c("<65 yrs", "65-80 yrs", ">80 yrs")),
     SEX          = factor(SEX,      levels = c("Male", "Female")),
     RACE_DISPLAY = factor(RACE_DISPLAY, levels = c("Caucasian", "African Descent", "Hispanic", "Other")),
@@ -50,7 +52,9 @@ desc_fs <- list(
 #' @param b A tplyr2 build result
 #' @return Tibble with rowlbl2 and res1..resN, ordered Placebo/Low/High/Total
 reslist <- function(b) {
-  b <- b[order(b$ord_layer_1), , drop = FALSE]
+  # as_display() returns the display-ready, already-ordered frame (rowlabel*/res*),
+  # dropping the internal ord*/row_id columns — no manual re-sort needed.
+  b <- as_display(b)
   rescols <- grep("^res", names(b), value = TRUE)
   out <- tibble(rowlbl2 = as.character(b$rowlabel1))
   for (i in seq_along(rescols)) out[[paste0("res", i)]] <- as.character(b[[rescols[i]]])
@@ -62,9 +66,10 @@ reslist <- function(b) {
 #' @return Padded tibble with rowlbl2 and res1..res4 columns
 desc_block <- function(var) {
   s <- tplyr_spec(cols = "TRT01P",
+                  total_groups = list(total_group("TRT01P")),
                   layers = tplyr_layers(group_desc(var,
                     settings = layer_settings(format_strings = desc_fs))))
-  pad_row(reslist(tplyr_build(s, adslT)))
+  pad_row(reslist(tplyr_build(s, adslG)))
 }
 
 #' Build an n(%) count block for a categorical variable
@@ -75,15 +80,18 @@ count_block <- function(var, incl_n = FALSE) {
   # pct_lt = 1 shows sub-1% as "<1"; zero_count_display = "count_only" shows zero cells as a bare count;
   # order_count_method = "byfactor" orders category rows by the target's factor levels.
   s <- tplyr_spec(cols = "TRT01P",
+                  total_groups = list(total_group("TRT01P")),
                   layers = tplyr_layers(group_count(var,
                     settings = layer_settings(
                       format_strings = list(n_counts = f_str("xxx (xxx%)", "n", "pct")),
                       order_count_method = "byfactor",
                       pct_lt = 1, zero_count_display = "count_only"))))
-  blk <- reslist(tplyr_build(s, adslT))
+  blk <- reslist(tplyr_build(s, adslG))
   if (incl_n) {
-    nrow_df <- adslT |> filter(!is.na(.data[[var]])) |> count(TRT01P, .drop = FALSE)
-    getn <- function(a) sprintf("%3d", nrow_df$n[nrow_df$TRT01P == a])
+    # adslG holds only the 3 real arms; the Total column count is their sum.
+    nrow_df <- adslG |> filter(!is.na(.data[[var]])) |> count(TRT01P, .drop = FALSE)
+    n_by <- setNames(nrow_df$n, as.character(nrow_df$TRT01P))
+    getn <- function(a) sprintf("%3d", if (identical(a, "Total")) sum(nrow_df$n) else n_by[[a]])
     blk <- bind_rows(
       tibble(rowlbl2 = "n", res1 = getn(ARMS[1]), res2 = getn(ARMS[2]),
              res3 = getn(ARMS[3]), res4 = getn(ARMS[4])),

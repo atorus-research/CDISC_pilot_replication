@@ -5,7 +5,7 @@
 source("R/setup.R"); source("R/helpers.R")
 
 TABLE <- "14-1.02"; SOURCE <- "programs/t-14-1-02.R"
-ARMS  <- c("Placebo", "Xanomeline Low Dose", "Xanomeline High Dose", "Total")
+ARMS  <- c("Placebo", "Xanomeline Low Dose", "Xanomeline High Dose")
 
 adsl <- read_adam("adsl")
 # DCSREAS -> display label; map order sets the display order
@@ -24,31 +24,30 @@ adsl <- adsl |>
     COMP_STAT = factor(if_else(COMP24FL == "Y", "Completed Week 24",
                                "Early Termination (prior to Week 24)"),
                        levels = c("Completed Week 24", "Early Termination (prior to Week 24)")),
-    DCREASCD  = factor(reason_lab[DCSREAS], levels = unname(reason_lab)))
-
-adslT <- bind_rows(adsl, mutate(adsl, TRT01P = "Total")) |>
-  mutate(TRT01P = factor(TRT01P, levels = ARMS))
+    DCREASCD  = factor(reason_lab[DCSREAS], levels = unname(reason_lab)),
+    TRT01P    = factor(TRT01P, levels = ARMS))
 
 #' Build an n(%) count block for a categorical variable
-#' @param data_with_total Analysis data including the bound "Total" arm
+#' @param data Analysis data; the "Total" arm is generated natively via total_group
 #' @param var Name of the categorical variable to count
 #' @return Tibble with an indented rowlbl and res1..res4 (Placebo/Low/High/Total); denominators are arm N via pop_data
-count_block <- function(data_with_total, var) {
+count_block <- function(data, var) {
   s <- tplyr_spec(cols = "TRT01P",
+                  total_groups = list(total_group("TRT01P")),
                   pop_data = pop_data(cols = c("TRT01P" = "TRT01P")),
                   layers = tplyr_layers(group_count(var,
                     settings = layer_settings(
                       format_strings = list(n_counts = f_str("xxx (xxx%)", "n", "pct")),
-                      order_count_method = "byfactor"))))
-  b <- tplyr_build(s, data_with_total, pop_data = adslT)
+                      order_count_method = "byfactor",
+                      missing_count = list(label = "Missing")))))
+  b <- tplyr_build(s, data, pop_data = adsl)
+  # order() keeps the NA-ord missing_count row last (as_display would place it first)
   b <- b[order(b$ord_layer_1), , drop = FALSE]
   rc <- grep("^res", names(b), value = TRUE)              # Placebo/Low/High/Total
   out <- tibble(rowlbl = paste0("  ", as.character(b$rowlabel1)))
   for (i in seq_along(rc)) out[[paste0("res", i)]] <- as.character(b[[rc[i]]])
   out
 }
-miss_row <- tibble(rowlbl = "  Missing", res1 = "  0 (  0%)", res2 = "  0 (  0%)",
-                   res3 = "  0 (  0%)", res4 = "  0 (  0%)")
 #' Build a section-header row with a label and empty result cells
 #' @param t Section-header text
 #' @return One-row tibble with rowlbl = t and empty res1..res4
@@ -58,30 +57,29 @@ sec  <- function(t) tibble(rowlbl = t, res1 = "", res2 = "", res3 = "", res4 = "
 blank <- function() tibble(rowlbl = "", res1 = "", res2 = "", res3 = "", res4 = "")
 
 # Completion status (denominator = full arm N)
-comp <- count_block(adslT, "COMP_STAT")
+comp <- count_block(adsl, "COMP_STAT")
 comp_p <- fish_p_str(adsl$COMP24FL, adsl$TRT01P)
 
 # Reason for early termination (numerator = terminated; denom = full arm N)
-term_dat <- adslT |> filter(COMP24FL == "N")
+term_dat <- adsl |> filter(COMP24FL == "N")
 term <- count_block(term_dat, "DCREASCD")
 # %in% (not ==): completers have NA DCREASCD and must count as 0, not be dropped from the test.
 ae_p  <- fish_p_str(as.integer(adsl$DCREASCD %in% "Adverse Event"),      adsl$TRT01P, width = 6)
 loe_p <- fish_p_str(as.integer(adsl$DCREASCD %in% "Lack of Efficacy[2]"), adsl$TRT01P, width = 6)
 
 # p-values sit on each section's first data row and the Lack-of-Efficacy row.
+# The trailing "Missing" row in each block is emitted natively via missing_count.
 comp$p <- ""; comp$p[1] <- comp_p
 term$p <- ""; term$p[1] <- ae_p
 term$p[term$rowlbl == "  Lack of Efficacy[2]"] <- loe_p
-miss_row$p <- ""
 
 final <- bind_rows(
-  blank(), sec("Completion Status:"), comp, miss_row,
-  blank(), sec("Reason for Early Termination (prior to Week 24):"), term, miss_row)
+  blank(), sec("Completion Status:"), comp,
+  blank(), sec("Reason for Early Termination (prior to Week 24):"), term)
 final <- final |> mutate(p = ifelse(is.na(p), "", p))
-final[] <- lapply(final, function(x) { attr(x, "label") <- NULL; as.character(x) })
 
 Ns <- adsl |> count(TRT01P) |> deframe(); Ntot <- sum(Ns)
-ct <- clintable(final, use_labels = FALSE) |>
+ct <- clintable(final, use_labels = FALSE, coerce_character = TRUE) |>
   clin_column_headers(
     rowlbl = "",
     res1 = arm_label("Placebo", Ns[["Placebo"]]),

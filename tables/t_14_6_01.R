@@ -47,6 +47,7 @@ read_lab <- function(name, recode_map, drop = character()) {
 #' @param b A tplyr2 build data frame
 #' @return A tibble with PARAM, AVISITN and the c1/c2/c3 stat cells
 extract <- function(b) {
+  b <- as_display(b)  # display-ready frame (rowlabel*/res* only, already ordered)
   rl <- grep("^rowlabel", names(b), value = TRUE)
   rc <- grep("^res", names(b), value = TRUE)
   tibble(PARAM = as.character(b[[rl[1]]]), AVISITN = as.integer(as.character(b[[rl[2]]])),
@@ -74,11 +75,14 @@ section_wide <- function(dat, params) {
       format_strings = list(mean_sd = f_str("xxx.x (xxx.xx)", "mean", "sd")))))), dat))
   MA <- msd("AVAL")
   MC <- msd("CHG")
-  # N is the record count at each visit (reference definition), not tplyr2's non-missing-AVAL count
-  Ncnt <- dat |> count(PARAM, AVISITN, TRTP, .drop = FALSE) |>
-    mutate(PARAM = as.character(PARAM), AVISITN = as.integer(as.character(AVISITN)),
-           TRTP = c(P = "P", L = "L", H = "H")[match(TRTP, ARM)]) |>
-    pivot_wider(names_from = TRTP, values_from = n, values_fill = 0, names_glue = "{TRTP}_N")
+  # N is the count of records assessed (n_records = non-missing + missing AVAL) at each visit
+  Nrec <- extract(tplyr_build(tplyr_spec(cols = "TRTP", layers = tplyr_layers(
+    group_desc("AVAL", by = c("PARAM", "AVISITN"), settings = layer_settings(
+      format_strings = list(n_records = f_str("xx", "n_records")))))), dat))
+  Ncnt <- Nrec |> transmute(PARAM, AVISITN,
+                            P_N = coalesce(as.integer(trimws(c1)), 0L),
+                            L_N = coalesce(as.integer(trimws(c2)), 0L),
+                            H_N = coalesce(as.integer(trimws(c3)), 0L))
   w <- MA |> left_join(MC, by = c("PARAM", "AVISITN"), suffix = c("_A", "_C")) |>
     left_join(Ncnt, by = c("PARAM", "AVISITN"))
   arms <- c("P", "L", "H")
@@ -126,10 +130,7 @@ final <- bind_rows(
   assemble("CHEMISTRY",  section_wide(chem, chem_p), chem_p),
   assemble("HEMATOLOGY", section_wide(hema, hema_p), hema_p)
 ) |> select(VISIT, all_of(COLS))
-final[] <- lapply(final, function(x) {
-  x[is.na(x)] <- ""
-  as.character(x)
-})
+# character coercion / NA-blanking is deferred to clintable(coerce_character = TRUE) below
 # drop trailing all-blank spacer rows; keep interior spacers
 final <- final[seq_len(max(which(rowSums(final != "") > 0))), , drop = FALSE]
 
@@ -143,12 +144,13 @@ Ns <- read_adam("adsl") |> filter(ARM != "Screen Failure") |> count(TRT01P) |> d
 #' @param arm Arm label
 #' @return `arm`
 spn <- function(arm) arm
-ct <- clintable(final, use_labels = FALSE) |>
+ct <- clintable(final, use_labels = FALSE, coerce_character = TRUE) |>
   clin_column_headers(
     VISIT = c("", "Visit"),
     P_N = c("Placebo", "N"),        P_M = c("Placebo", "Mean (SD)"),        P_C = c("Placebo", "Change\nfrom Bsln\nMean (SD)"),
     L_N = c("Xanomeline Low", "N"), L_M = c("Xanomeline Low", "Mean (SD)"), L_C = c("Xanomeline Low", "Change\nfrom Bsln\nMean (SD)"),
     H_N = c("Xanomeline High", "N"),H_M = c("Xanomeline High", "Mean (SD)"),H_C = c("Xanomeline High", "Change\nfrom Bsln\nMean (SD)")) |>
+  clin_spanner_rule(officer::fp_border(color = "black", width = 1, style = "dashed")) |>
   flextable::valign(part = "header", valign = "bottom") |>
   flextable::align(part = "header", align = "center") |>
   flextable::align(j = "VISIT", part = "header", align = "left") |>
@@ -159,18 +161,18 @@ ct <- clintable(final, use_labels = FALSE) |>
 for (r in merge_rows) ct <- flextable::merge_at(ct, i = r, j = 1:10, part = "body")
 ct <- add_titles_footnotes(ct, TABLE, source_path = SOURCE)
 
-#' Apply the house default plus a dashed spanner underline and tight cell padding
+#' Apply the house default plus tight cell padding
 #' @param x A flextable
 #' @param ... Unused
 #' @return The styled flextable
 #'
 #' Padding is tightened so the 14-char "xxx.x (xxx.xx)" cells fit the 1.24" columns
-#' without wrapping; the dashed rule underlines each arm spanner (header row 1).
+#' without wrapping. The dashed spanner underline is added separately via
+#' clin_spanner_rule() in the table pipeline; clinify applies it after this styler
+#' (inside finish_table_) so it survives cdisc_table_default()'s border_remove().
 sd <- function(x, ...) {
   x <- cdisc_table_default(x)
-  x <- flextable::padding(x, padding.left = 1, padding.right = 1, part = "all")
-  flextable::hline(x, i = 1, j = 2:10,
-    border = officer::fp_border(color = "black", width = 1, style = "dashed"), part = "header")
+  flextable::padding(x, padding.left = 1, padding.right = 1, part = "all")
 }
 old <- options(clinify_table_default = sd)
 write_clindoc(ct, file.path(OUTPUT_DIR, paste0(TABLE, ".docx")))

@@ -33,11 +33,11 @@ dblock <- function(var, label) {
   b <- tplyr_build(tplyr_spec(cols = "TRTPCD",
          layers = tplyr_layers(group_desc(var,
            settings = layer_settings(format_strings = fs)))), adsl_)
-  b <- b[order(b$ord_layer_1), , drop = FALSE]
-  rc <- grep("^res", names(b), value = TRUE)   # six result cols, in GRP factor order
-  out <- tibble(rowlbl1 = "", rowlbl2 = as.character(b$rowlabel1))
+  d <- as_display(b)                           # display-ready + ordered; drops ord*/row_id cols
+  rc <- grep("^res", names(d), value = TRUE)   # six result cols, in GRP factor order
+  out <- tibble(rowlbl1 = "", rowlbl2 = as.character(d$rowlabel1))
   out$rowlbl1[1] <- label
-  for (i in seq_along(rc)) out[[paste0("res", i)]] <- as.character(b[[rc[i]]])
+  for (i in seq_along(rc)) out[[paste0("res", i)]] <- as.character(d[[rc[i]]])
   pad_row(out)
 }
 
@@ -55,6 +55,7 @@ ct <- clintable(final, use_labels = FALSE) |>
     res4 = c(sp_s, arm_label("Placebo", Ns[["0_S"]])),
     res5 = c(sp_s, arm_label("Xanomeline Low Dose",  Ns[["54_S"]])),
     res6 = c(sp_s, arm_label("Xanomeline High Dose", Ns[["81_S"]]))) |>
+  clin_spanner_rule() |>
   flextable::valign(part = "header", valign = "bottom") |>
   flextable::align(part = "header", align = "center") |>
   flextable::align(j = c("rowlbl1", "rowlbl2"), part = "header", align = "left") |>
@@ -66,17 +67,16 @@ ct <- clintable(final, use_labels = FALSE) |>
   flextable::set_table_properties(align = "center")
 ct <- add_titles_footnotes(ct, TABLE, source_path = SOURCE, date = FIDELITY_DATE)
 
-#' Apply the house table default and underline each spanner
+#' Apply the house table default and compact the header
 #' @param x A flextable to style.
 #' @param ... Unused; matches the `clinify_table_default` signature.
 #' @return The styled flextable.
+#' @details The spanner underline is drawn by `clin_spanner_rule()` in the table
+#'   pipeline, which clinify applies after this styler so it survives border_remove().
 spanned_default <- function(x, ...) {
   x <- cdisc_table_default(x)
   # Compact the multi-line arm labels in the header.
-  x <- flextable::line_spacing(x, space = 0.75, part = "header")
-  # Underline each spanner; done here because the default runs border_remove first.
-  flextable::hline(x, i = 1, j = c("res1", "res2", "res3", "res4", "res5", "res6"),
-                   border = officer::fp_border(color = "black", width = 1), part = "header")
+  flextable::line_spacing(x, space = 0.75, part = "header")
 }
 old <- options(clinify_table_default = spanned_default)
 write_clindoc(ct, file.path(OUTPUT_DIR, paste0(TABLE, ".docx")))

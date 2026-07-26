@@ -11,7 +11,7 @@ PARAMS   <- c("Systolic Blood Pressure (mmHg)", "Diastolic Blood Pressure (mmHg)
 VIS      <- c("Week 24", "End of Trt.")
 COLS     <- c("n", "Mean", "SD", "Median", "Min.", "Max.")
 
-FS <- list("n"      = f_str("xx",    "n"),
+FS <- list("n"      = f_str("xx",    "n_records"),
            "Mean"   = f_str("xxx.x", "mean"),
            "SD"     = f_str("xx.xx", "sd"),
            "Median" = f_str("xxx.x", "median"),
@@ -41,10 +41,9 @@ build_wide <- function(dat) {
               TRTP = as.character(rowlabel3), PRTFL = as.character(rowlabel4),
               stat = as.character(rowlabel5), val = as.character(res1)) |>
     tidyr::pivot_wider(names_from = stat, values_from = val)
-  # n is the record count at each visit (not the non-missing-CHG count); Mean/SD/... drop NA.
-  cnt <- dat |> count(PARAM, ATPT, TRTP, PRTFL, name = "nrec")
-  wide |> left_join(cnt, by = c("PARAM", "ATPT", "TRTP", "PRTFL")) |>
-    mutate(n = as.character(nrec)) |> select(-nrec)
+  # n is the record count at each visit (records assessed = non-missing + missing),
+  # emitted directly by the n_records stat; Mean/SD/... drop NA.
+  wide
 }
 
 w  <- build_wide(advs)
@@ -69,9 +68,9 @@ for (p in PARAMS) for (ai in seq_along(ATPTS)) for (ti in seq_along(ARM)) {
   out[[length(out) + 1]] <- blank_row
 }
 final <- bind_rows(out) |> select(Measure, Position, Treatment, N, PRT, all_of(COLS))
-final[] <- lapply(final, function(x) { x[is.na(x)] <- ""; as.character(x) })
 
-ct <- clintable(final, use_labels = FALSE) |>
+# coerce_character coerces every column to character; NA renders blank via flextable's default na_str.
+ct <- clintable(final, use_labels = FALSE, coerce_character = TRUE) |>
   clin_column_headers(
     Measure = "Measure", Position = "Position", Treatment = "Treatment", N = "N",
     PRT = "Planned Relative Time",

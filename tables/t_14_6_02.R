@@ -49,59 +49,50 @@ prep <- function(name, rc, ord) {
            RIND  = factor(RIND, c("L", "N", "H")))
 }
 
-#' Build the 9-column n(%) block (PARAM rows x arm-category columns)
+#' Build a Fisher's-exact p-value function for a per-PARAM `assoc_test()`
+#' @param na_rule When TRUE, blank the p-value where every Low and High cell is 0
+#' @return A function of the by-group data subset returning a scalar p-value (or NA)
+#'
+#' The test is over the 3x3 (arm x category) table. na_rule returns NA (rendered blank)
+#' when all subjects are Normal (every Low and High cell 0), where Fisher's test is undefined.
+fisher_p <- function(na_rule = FALSE) function(.data) {
+  m <- matrix(as.integer(table(factor(.data$TRTP, ARMS), factor(.data$RIND, c("L", "N", "H")))),
+              nrow = 3)                                       # rows = arm, cols = L/N/H
+  if (na_rule && all(m[, 1] == 0) && all(m[, 3] == 0)) return(NA_real_)
+  suppressWarnings(fisher.test(m)$p.value)
+}
+
+#' Build the 9-column n(%) block plus per-PARAM Fisher p-value
 #' @param d Prepped lab records from `prep()`
-#' @return A tibble with a STUB label column and res1..res9 n(%) cells
+#' @param na_rule Passed to `fisher_p()`; blanks the p where every Low and High cell is 0
+#' @return A tibble with a STUB label column, res1..res9 n(%) cells, and a formatted PVAL
 #'
 #' Percent denominator is the per-(PARAM, arm) total, so zeros display as a bare " 0".
-count_wide <- function(d) {
+#' PARAM is carried as the layer's `by` so assoc_test() keys the Fisher test per analyte;
+#' the constant target ("x") gives one output row per PARAM, and as_display() surfaces the
+#' p-value as a trailing pval1 column (NA/error -> blank) which we relabel PVAL.
+count_wide <- function(d, na_rule = FALSE) {
+  d$STAT <- factor("x")
   b <- tplyr_build(tplyr_spec(cols = c("TRTP", "RIND"),
-        layers = tplyr_layers(group_count("PARAM",
+        layers = tplyr_layers(group_count("STAT", by = "PARAM",
           settings = layer_settings(
             format_strings = list(n_counts = f_str("xx(xxx%)", "n", "pct")),
             denoms_by = c("PARAM", "TRTP"),
             order_count_method = "byfactor",
-            zero_count_display = "count_only")))), d)
-  b <- b[order(b$ord_layer_1), , drop = FALSE]
-  rc <- grep("^res", names(b), value = TRUE)       # 9: arm(L,N,H) x 3 arms
-  out <- tibble(STUB = as.character(b$rowlabel1))
-  for (i in seq_along(rc)) out[[paste0("res", i)]] <- as.character(b[[rc[i]]])
-  out
-}
-
-#' Compute the Fisher's-exact p-value per PARAM
-#' @param d Prepped lab records from `prep()`
-#' @param na_rule When TRUE, blank the p-value where every Low and High cell is 0
-#' @param size Field width passed to `num_fmt()`
-#' @return A tibble of STUB and formatted PVAL (NA -> "")
-#'
-#' The test is over the 3x3 (arm x category) table. na_rule leaves the p-value blank when
-#' all subjects are Normal (every Low and High cell 0), where Fisher's test is undefined.
-pvals <- function(d, na_rule = FALSE, size = 4) {
-  cnt <- d |> count(PARAM, TRTP, RIND, .drop = FALSE) |> arrange(PARAM, TRTP, RIND)
-  cnt |> group_by(PARAM) |> group_map(function(x, k) {
-    m <- matrix(x$n, nrow = 3, ncol = 3, byrow = TRUE)   # rows = arm, cols = L/N/H
-    p <- if (na_rule && all(m[, 1] == 0) && all(m[, 3] == 0)) NA_real_
-         else suppressWarnings(fisher.test(m)$p.value)
-    tibble(STUB = as.character(k$PARAM),
-           PVAL = num_fmt(p, digits = 3, int_len = 1, size = size))  # NA -> ""
-  }) |> bind_rows()
-}
-
-#' Attach the p-value column to a count block (joined on the PARAM label)
-#' @param block A count block from `count_wide()`
-#' @param d Prepped lab records from `prep()`
-#' @param na_rule Passed through to `pvals()`
-#' @return `block` with a PVAL column (NA -> "")
-with_p <- function(block, d, na_rule = FALSE) {
-  block |> left_join(pvals(d, na_rule = na_rule), by = "STUB") |>
-    mutate(PVAL = ifelse(is.na(PVAL), "", PVAL))
+            zero_count_display = "count_only",
+            assoc_test = assoc_test(fn = fisher_p(na_rule),
+                                    format = f_str("x.xxx", "p"),
+                                    label = "p-val"))))), d)
+  # as_display() returns rowlabel1 (PARAM) + rowlabel2 (the constant "x") + the 9 res n(%)
+  # cells (arm(L,N,H) x 3 arms) + pval1, already ordered by the build; drop the dummy target
+  # column and relabel PARAM -> STUB, pval1 -> PVAL.
+  as_display(b) |> select(-rowlabel2) |> rename(STUB = rowlabel1, PVAL = pval1)
 }
 
 chem_d <- prep("adlbc", CHEM_RC, CHEM_ORD)
 hem_d  <- prep("adlbh", HEM_RC, HEM_ORD)
-chem   <- with_p(count_wide(chem_d), chem_d, na_rule = FALSE)
-heme   <- with_p(count_wide(hem_d),  hem_d,  na_rule = TRUE)
+chem   <- count_wide(chem_d, na_rule = FALSE)
+heme   <- count_wide(hem_d,  na_rule = TRUE)
 
 COLS <- c(paste0("res", 1:9), "PVAL")
 
@@ -113,11 +104,6 @@ row9 <- function(stub = "") tibble(STUB = stub, !!!setNames(rep(list(""), 10), C
 final <- bind_rows(
   row9(""), row9("CHEMISTRY"), row9("----------"), chem,
   row9(""), row9("HEMATOLOGY"), row9("----------"), heme)
-final[] <- lapply(final, function(x) {
-  x[is.na(x)] <- ""
-  attr(x, "label") <- NULL
-  as.character(x)
-})
 
 # render: 2-level header (arm spanner x Low/Normal/High) + Fisher p column.
 # Arm Ns are the safety population per arm (adsl, excluding Screen Failure).
@@ -131,13 +117,16 @@ sp  <- function(short, arm) sprintf("%s (N=%s)", short, Ns[[arm]])
 PBO <- sp("Placebo", "Placebo")
 LOW <- sp("Xan. Low", "Xanomeline Low Dose")
 HIGH <- sp("Xan. High", "Xanomeline High Dose")
-ct <- clintable(final, use_labels = FALSE) |>
+ct <- clintable(final, use_labels = FALSE, coerce_character = TRUE) |>
   clin_column_headers(
     STUB = "",
     res1 = c(PBO, "Low"),  res2 = c(PBO, "Normal"),  res3 = c(PBO, "High"),
     res4 = c(LOW, "Low"),  res5 = c(LOW, "Normal"),  res6 = c(LOW, "High"),
     res7 = c(HIGH, "Low"), res8 = c(HIGH, "Normal"), res9 = c(HIGH, "High"),
     PVAL = c("", "p-val\n[1]")) |>
+  # solid rule beneath each arm spanner, auto-derived to span exactly its 3 value
+  # columns (skips the blank STUB/PVAL header cells); survives the styler's border_remove().
+  clin_spanner_rule() |>
   flextable::valign(part = "header", valign = "bottom") |>
   flextable::align(part = "header", align = "center") |>
   flextable::align(j = "STUB", part = "header", align = "left") |>
@@ -147,18 +136,7 @@ ct <- clintable(final, use_labels = FALSE) |>
   flextable::width(j = "PVAL", width = 0.52)
 ct <- add_titles_footnotes(ct, TABLE, source_path = SOURCE, date = FIDELITY_DATE)
 
-#' Apply the house default plus a solid underline beneath each arm spanner
-#' @param x A flextable
-#' @param ... Unused
-#' @return The styled flextable
-#'
-#' The rule spans the 9 value columns (cols 2:10) on header row 1; the full-width bottom
-#' rule under the labels row comes from cdisc_table_default().
-sd <- function(x, ...) {
-  x <- cdisc_table_default(x)
-  flextable::hline(x, i = 1, j = 2:10, border = officer::fp_border(color = "black", width = 1), part = "header")
-}
-old <- options(clinify_table_default = sd)
+# The per-spanner rules are drawn by clin_spanner_rule() above; the full-width bottom rule
+# under the labels row comes from the house cdisc_table_default() styler.
 write_clindoc(ct, file.path(OUTPUT_DIR, paste0(TABLE, ".docx")))
-options(old)
 cat("rows:", nrow(final), "\n")

@@ -106,16 +106,45 @@ score, prefers the SMALLEST displacement — so a periodic grid's full-row-off s
 longer wins over the true near-zero shift. No-op for tables with a single clear peak. Re-swept all
 30: 15/16 pixel identical, 14-1.03 +0.01% (2.398->2.408, still PASS), 14/14 content unchanged.
 
-## Housekeeping / version pins — the ONLY things still open
-- **tplyr2** installed from `atorus-research/tplyr2@issue-31-shift-zero-display` (PR #32 branch =
-  main + #31/#32). main already carries #21/#23/#25/#27 (shift denom, by-group ordering, byfactor).
-  **➜ Repin to `@main` once #32 merges.**
-- **clinify** installed from `atorus-research/clinify@development` (v0.4.0): #95/#96 merge control,
-  #98/#99 alignment + per-line title align, #97/#100 clin_row_height, #97/#102 clin_header_pad.
-  **➜ Repin to a release tag once `development` ships to `main`.**
-- **renv.lock** references these dev/PR branches and is not snapshotted. **➜ Snapshot/pin once both
-  packages cut releases to main.** (Nothing functional depends on this — the installed builds are
-  correct and the full suite is green; it's purely reproducibility hygiene for the lockfile.)
+## Version pins / renv snapshot — DONE (2026-07-26)
+- **tplyr2** repinned to `atorus-research/tplyr2@main` (**0.2.0**, SHA 8e94e12) — carries #33/#34/#35/#36 (PR #38)
+  and #37 (PR #39) plus the earlier shift/ordering/byfactor fixes.
+- **clinify** repinned to `atorus-research/clinify@main` (**0.4.0**, SHA 5721abf), the release line. NOTE: main
+  and development had DIVERGED but only in NEWS.md / cran-comments.md / .gitignore — the R/ source is identical
+  (main got #109/#110 via the release merge #103), so main is authoritative. development is 2 doc-commits ahead
+  (a NEWS tidy not forward-merged) — a clinify-side housekeeping nit, not a code difference.
+- **renv.lock** snapshotted against the verified library. (renv still reports 5 legacy packages "used but not
+  installed" — huxtable/pharmaRTF/vcdExtra/plyr/assertthat — but none are referenced by the nextgen code; it's
+  scan-noise from the legacy `programs/` files, pre-existing and harmless to the rebuild.)
+
+## Upstream fixes adopted into the pilot (2026-07-26)
+All 8 filed issues were addressed upstream (tplyr2 0.2.0 = PR #38 for #33–#36 + PR #39 for #37; clinify 0.4.0 =
+PR #109 for #104 + PR #110 for #105; #106 closed won't-do — Word owns pagination here so page-relative blanking
+is unimplementable). Features were adopted only where the native call reproduces the verified output
+BYTE-IDENTICALLY (fanned-out verify-and-revert; independent full-30 sweep afterward = 0/30 changed):
+
+**Adopted**
+- **as_display() (#36)** ×12 — replaced the `grep("^res")` recast in efficacy.R, ae.R, 14-1.01, 14-2.01, 14-3.13,
+  14-4.01, 14-6.01/.02/.03/.04/.05/.06.
+- **coerce_character (#104)** ×16 — replaced the `final[] <- lapply(...)` NA/character boilerplate.
+- **clin_spanner_rule (#105)** ×7 — replaced the hand-rolled header `hline` (dashed in 14-6.01) across 14-4.01
+  and 14-6.01/.02/.03/.04/.05/.06.
+- **total_group()** ×3 — 14-1.01, 14-1.02, 14-2.01 (dropped the `bind_rows(…TRT01P="Total")` duplication).
+- **n_records (#34)** ×2 — 14-6.01, 14-7.02 (14-7.01/.03 pre-filter to non-missing, so n/a there).
+- **missing_count (#33)** ×1 — 14-1.02 (dropped the hardcoded all-zero Missing row).
+- **assoc_test (#37)** ×2 — the Fisher lab tables 14-6.02, 14-6.03.
+- **14-7.04 CM rewrite** — now native `group_count(c("CMCLAS","CMDECOD"), distinct_by=, pop_data=, total_row=)`.
+  **14-7.04 now uses tplyr2 → only 3 tables remain non-tplyr2** (14-1.03 crosstab, 14-3.11 MMRM, 14-3.10 wide).
+
+**Kept manual** (native feature exists but can't reproduce the pilot's exact output byte-identically)
+- **assoc_test** for 14-5.01 (AE): needs TWO p-columns (Pbo-vs-Low, Pbo-vs-High) on EVERY SOC/PT row + ADSL
+  population denominators (absent from the AE subset) + custom `*`/`>.99`/pad formatting; assoc_test emits one
+  column on each by-group's first row only. Kept `fisher_ae`.
+- **assoc_test** for the CMH tables 14-6.05/.06 and 14-3.13 — placement/layout not byte-matchable; kept the
+  `coin::cmh_test` pipeline.
+- **denom_row (#35)** for 14-6.04/.05/.06 — the emitted denominator row didn't match the pilot's exact
+  format/placement; kept the hand-rolled n-row.
+- **apply_formats()** — left `num_fmt` (31 callers, verified); a lateral swap with no boilerplate win.
 
 ## Post-cleanup redundancy review + upstream issues filed (2026-07-25)
 The final code review surfaced recurring hand-written boilerplate. Each candidate was VERIFIED against the
@@ -141,7 +170,7 @@ clinify:
 - clinify **#15** (auto-insert header N's) — added the pilot's hand-rolled big-N reprex.
 - clinify **#7** (titles/footnotes from a data source) — added the `read_titles` / titles.xlsx reprex (also covers #6).
 
-### Already supported — NOT filed; adopt in the pilot to drop bespoke code (optional)
+### Already supported — NOT filed (ADOPTED 2026-07-26 where byte-identical; see "Upstream fixes adopted" above)
 - **`f_str` unpadded percent** — the "(8%)" blocker was a FALSE premise: a single-char token
   `f_str("xxx (x%)", "distinct_n", "distinct_pct")` already emits unpadded/variable-width percents. So **14-7.04
   (CM) CAN use `group_count(c("CMCLAS","CMDECOD"), distinct_by="USUBJID", ...)`** — the "4 tables don't use

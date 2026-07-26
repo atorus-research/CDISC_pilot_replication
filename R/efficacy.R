@@ -110,13 +110,12 @@ build_efficacy_table <- function(table, source_path, dataset, paramcd, week,
   if (is.null(use_base)) use_base <- (endpoint == "ADAS")
   desc <- tplyr_build(tplyr_spec(cols = "TRTP",
                                  layers = do.call(tplyr_layers, lapply(blocks, mk_desc))), dat) |>
-    collapse_row_labels() |>
-    select(row_label, res1, res2, res3)
+    as_display() |>
+    collapse_row_labels()
 
   final <- top_spacer(bind_rows(desc, ancova_block(dat, week, use_base)))
-  final[] <- lapply(final, function(x) { attr(x, "label") <- NULL; as.character(x) })
 
-  ct <- clintable(final, use_labels = FALSE) |>
+  ct <- clintable(final, use_labels = FALSE, coerce_character = TRUE) |>
     clin_column_headers(
       row_label = "",
       res1 = arm_label("Placebo",              hn[["Placebo"]]),

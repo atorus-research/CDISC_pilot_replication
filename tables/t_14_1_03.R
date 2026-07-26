@@ -29,7 +29,7 @@ w <- bind_rows(w, w |> summarize(across(all_of(COLS), sum)) |>
                  mutate(SITEGR1 = "TOTAL", SITEID = ""))
 
 final <- tibble(PID = w$SITEGR1, SID = w$SITEID)
-for (cc in COLS) final[[cc]] <- as.character(w[[cc]])
+for (cc in COLS) final[[cc]] <- w[[cc]]
 
 # header: arm spanner (str_wrap width 10) + ITT/Eff/Com sub-labels
 N <- a |> count(TRT01P) |> deframe()
@@ -47,7 +47,7 @@ sp <- c(P = alab("Placebo", N[["Placebo"]]),
 #' @param sub Sub-label (ITT, Eff, or Com)
 #' @return Length-2 character vector: arm spanner and sub-label
 hdr <- function(code, sub) c(sp[[code]], sub)
-ct <- clintable(final, use_labels = FALSE) |>
+ct <- clintable(final, use_labels = FALSE, coerce_character = TRUE) |>
   clin_column_headers(
     PID = c("", "Pooled\nId"), SID = c("", "Site\nId"),
     P_ITT = hdr("P", "ITT"), P_Eff = hdr("P", "Eff"), P_Com = hdr("P", "Com"),

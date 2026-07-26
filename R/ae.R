@@ -26,17 +26,17 @@ build_ae_table <- function(table, source_path, serious = FALSE) {
         zero_count_display = "count_only")))
   )
   b <- tplyr_build(spec, adae, pop_data = adsl)
-  rc <- grep("^res", names(b), value = TRUE)   # res1..res6, factor-ordered
+  bd <- as_display(b)   # display-ready frame: rowlabel*/res1..res6, row order preserved (ord/row_id dropped)
 
   #' Parse the leading integer count out of an "n (xx.x%)" cell
   #' @param s Character vector of formatted count cells
   #' @return Integer vector of leading counts (NA when absent)
   lead_int <- function(s) suppressWarnings(as.integer(sub("^\\s*([0-9]+).*$", "\\1", s)))
   d <- tibble(
-    soc = as.character(b$rowlabel1), pt = as.character(b$rowlabel2), depth = b$ord_layer_2,
-    npct_0  = as.character(b[[rc[1]]]), e_0  = as.character(b[[rc[2]]]),
-    npct_54 = as.character(b[[rc[3]]]), e_54 = as.character(b[[rc[4]]]),
-    npct_81 = as.character(b[[rc[5]]]), e_81 = as.character(b[[rc[6]]])
+    soc = as.character(bd$rowlabel1), pt = as.character(bd$rowlabel2), depth = b$ord_layer_2,
+    npct_0  = as.character(bd$res1), e_0  = as.character(bd$res2),
+    npct_54 = as.character(bd$res3), e_54 = as.character(bd$res4),
+    npct_81 = as.character(bd$res5), e_81 = as.character(bd$res6)
   ) |>
     mutate(n0 = lead_int(npct_0), n54 = lead_int(npct_54), n81 = lead_int(npct_81)) |>
     mutate(soc_rank = if_else(depth == 0, 0L, 1L), soc_key = if_else(depth == 0, "", soc)) |>

@@ -5,10 +5,10 @@
 source("R/setup.R"); source("R/helpers.R")
 
 TABLE <- "14-1.01"; SOURCE <- "programs/t-14-1-01.R"
-ARMS  <- c("Placebo", "Xanomeline Low Dose", "Xanomeline High Dose", "Total")
+ARMS  <- c("Placebo", "Xanomeline Low Dose", "Xanomeline High Dose")
 
 adsl0 <- read_adam("adsl")
-adslT <- bind_rows(adsl0, mutate(adsl0, TRT01P = "Total")) |>
+adsl <- adsl0 |>
   mutate(TRT01P = factor(TRT01P, levels = ARMS),
          COMPL  = if_else(DCDECOD == "COMPLETED", "Y", "N"))
 Ns <- adsl0 |> count(TRT01P) |> deframe(); Ntot <- sum(Ns)
@@ -19,15 +19,14 @@ Ns <- adsl0 |> count(TRT01P) |> deframe(); Ntot <- sum(Ns)
 #' @return One-row tibble with rowlbl1 and res1..res4 (Placebo/Low/High/Total)
 pop_row <- function(flag, label) {
   s <- tplyr_spec(cols = "TRT01P",
+                  total_groups = list(total_group("TRT01P")),
                   layers = tplyr_layers(group_count(flag,
                     settings = layer_settings(
                       format_strings = list(n_counts = f_str("xxx (xxx%)", "n", "pct")),
                       keep_levels = "Y"))))
-  b <- tplyr_build(s, adslT)
-  rc <- grep("^res", names(b), value = TRUE)
+  b <- as_display(tplyr_build(s, adsl))
   tibble(rowlbl1 = label,
-         res1 = as.character(b[[rc[1]]]), res2 = as.character(b[[rc[2]]]),
-         res3 = as.character(b[[rc[3]]]), res4 = as.character(b[[rc[4]]]))
+         res1 = b$res1, res2 = b$res2, res3 = b$res3, res4 = b$res4)
 }
 
 final <- top_spacer(bind_rows(

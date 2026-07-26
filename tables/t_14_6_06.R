@@ -47,22 +47,28 @@ analyte_rows <- function(pc) {
   d <- adlbhy |> filter(PARAMCD == pc)
   # group_shift with shift_denom = "column"; no `by` (one analyte per call) so the column
   # denominator is each TRTP x BASE baseline group. res columns come out TRTP x BASE.
-  b <- tplyr_build(tplyr_spec(cols = "TRTP",
+  # as_display() returns the display-ready frame (rowlabel1/res1..res6), dropping
+  # the internal ord* columns; the build is already factor-ordered so no re-sort.
+  b <- as_display(tplyr_build(tplyr_spec(cols = "TRTP",
         layers = tplyr_layers(group_shift(c(row = "AVAL", column = "BASE"),
           settings = layer_settings(
             shift_denom = "column",
             format_strings = list(n_counts = f_str("xx(xxx%)", "n", "pct")),
-            order_count_method = "byfactor", zero_count_display = "count_only")))), d)
+            order_count_method = "byfactor", zero_count_display = "count_only")))), d))
   rc <- grep("^res", names(b), value = TRUE)
   rl <- grep("^rowlabel", names(b), value = TRUE)
   sh <- tibble(SHIFT = as.character(b[[rl[1]]]))
   for (i in seq_along(rc)) sh[[COLS[i]]] <- as.character(b[[rc[i]]])
+  # denom_row = TRUE was rejected: it renders empty baseline groups as NA (not "0")
+  # and pads counts to the count-cell width, so the n-row is built manually instead.
   nr <- d |> count(TRTP, BASE, .drop = FALSE) |>
     mutate(col = paste(TRTP, recode(as.character(BASE), "0" = "N", "1" = "H"))) |>
     select(col, n) |> pivot_wider(names_from = col, values_from = n, values_fill = 0)
   nr[COLS] <- lapply(nr[COLS], function(x) sprintf("%2d", x))
   n_row <- tibble(SHIFT = "n")
   for (c in COLS) n_row[[c]] <- nr[[c]]
+  # assoc_test was rejected: with no `by` var it lands the p-value on the layer's
+  # first output row (the AVAL=0 shift row), not on the "n" row the pilot places it on.
   n_row$PVAL <- cmh_pval(d)
   sh$PVAL <- ""
   list(n = n_row, shifts = sh)
@@ -107,10 +113,6 @@ final <- bind_rows(
   blank_row(),
   block("HYLAW", "Total Bili 1.5 x ULN and", "Transaminase 1.5 x ULN")
 ) |> select(LBL, SHIFT, all_of(COLS), PVAL)
-final[] <- lapply(final, function(x) {
-  x[is.na(x)] <- ""
-  as.character(x)
-})
 
 # render: same header as 14-6.05 (arm spanner x baseline, Shift[1], p-value[2])
 Ns <- read_adam("adsl") |> filter(ARM != "Screen Failure") |> count(TRT01P) |> deframe()
@@ -120,7 +122,7 @@ Ns <- read_adam("adsl") |> filter(ARM != "Screen Failure") |> count(TRT01P) |> d
 #' @param arm Full arm name for the N lookup
 #' @return "short (N=n)"
 arm_hdr <- function(short, arm) sprintf("%s (N=%s)", short, Ns[[arm]])
-ct <- clintable(final, use_labels = FALSE) |>
+ct <- clintable(final, use_labels = FALSE, coerce_character = TRUE) |>
   clin_column_headers(
     LBL = "", SHIFT = c("", "Shift", "[1]"),
     `Placebo N`              = c(arm_hdr("Placebo", "Placebo"), "Normal at", "Baseline"),
@@ -133,6 +135,10 @@ ct <- clintable(final, use_labels = FALSE) |>
     # merge = "spanners" merges every header row except the bottom one, so the arm
     # spanners merge while the repeated "Baseline" leaf labels stay as separate cells.
     merge = "spanners") |>
+  # 1pt rule beneath each arm spanner, across only that arm's two baseline columns
+  # (auto-derived from the merged header runs); applied after the house styler, so it
+  # survives border_remove(). Replaces per-spanner flextable::hline() calls.
+  clin_spanner_rule() |>
   flextable::valign(part = "header", valign = "bottom") |>
   flextable::align(part = "header", align = "center") |>
   flextable::align(j = "LBL", part = "header", align = "left") |>
@@ -144,18 +150,5 @@ ct <- clintable(final, use_labels = FALSE) |>
   flextable::width(j = "PVAL", width = 0.54)
 ct <- add_titles_footnotes(ct, TABLE, source_path = SOURCE)
 
-#' Apply the house default plus a 1pt underline beneath each arm spanner (header row 1)
-#' @param x A flextable
-#' @param ... Unused
-#' @return The styled flextable
-sd <- function(x, ...) {
-  x <- cdisc_table_default(x)
-  bd <- officer::fp_border(color = "black", width = 1)
-  x <- flextable::hline(x, i = 1, j = 3:4, border = bd, part = "header")
-  x <- flextable::hline(x, i = 1, j = 5:6, border = bd, part = "header")
-  flextable::hline(x, i = 1, j = 7:8, border = bd, part = "header")
-}
-old <- options(clinify_table_default = sd)
 write_clindoc(ct, file.path(OUTPUT_DIR, paste0(TABLE, ".docx")))
-options(old)
 cat("rows:", nrow(final), "\n")

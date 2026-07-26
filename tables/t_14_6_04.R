@@ -50,20 +50,23 @@ comb <- bind_rows(read_adam("adlbc"), read_adam("adlbh")) |>
 # shift cells: n(%) shifting to each ANRIND, column-wise per (TRTP x BNRIND) baseline group.
 # group_shift with shift_denom = "column"; res columns come out TRTP x BNRIND
 # (Placebo|N, Placebo|H, Low|N, ...) in the same order as COLS.
-b <- tplyr_build(tplyr_spec(cols = "TRTP",
+# as_display() returns the ordered, display-ready frame (rowlabel*/res* as
+# character), dropping the internal ord*/row_id cols.
+b <- as_display(tplyr_build(tplyr_spec(cols = "TRTP",
        layers = tplyr_layers(group_shift(c(row = "ANRIND", column = "BNRIND"), by = c("PARAM", "VISIT"),
          settings = layer_settings(
            shift_denom = "column",
            format_strings = list(n_counts = f_str("xx(xxx%)", "n", "pct")),
-           order_count_method = "byfactor", zero_count_display = "count_only")))), comb)
+           order_count_method = "byfactor", zero_count_display = "count_only")))), comb))
 rl <- grep("^rowlabel", names(b), value = TRUE)
 rc <- grep("^res", names(b), value = TRUE)   # PARAM,VISIT,ANRIND | 6
-shift <- tibble(PARAM = as.character(b[[rl[1]]]), VISIT = as.character(b[[rl[2]]]),
-                SHIFT = as.character(b[[rl[3]]]))
-for (i in seq_along(rc)) shift[[COLS[i]]] <- as.character(b[[rc[i]]])
+shift <- tibble(PARAM = b[[rl[1]]], VISIT = b[[rl[2]]], SHIFT = b[[rl[3]]])
+for (i in seq_along(rc)) shift[[COLS[i]]] <- b[[rc[i]]]
 shift$SHIFT <- recode(shift$SHIFT, "N" = "Normal", "H" = "High")
 
-# n rows: baseline-group N per (PARAM, VISIT, TRTP, BNRIND) column
+# n rows: baseline-group N per (PARAM, VISIT, TRTP, BNRIND) column.
+# (tplyr2 denom_row was tried here but emits NA for absent baseline groups and a
+#  count-column-width integer; the reference needs zero-filled, %2d-wide values.)
 nrows <- comb |> count(PARAM, VISIT, TRTP, BNRIND, .drop = FALSE) |>
   mutate(col = paste(TRTP, BNRIND)) |>
   select(PARAM, VISIT, col, n) |> pivot_wider(names_from = col, values_from = n, values_fill = 0)
@@ -112,10 +115,6 @@ final <- bind_rows(
   sec("HEMATOLOGY", "----------"),
   body[first_hem:nrow(body), ]
 ) |> select(LBL, WEEK, SHIFT, all_of(COLS))
-final[] <- lapply(final, function(x) {
-  x[is.na(x)] <- ""
-  as.character(x)
-})
 
 # render: 3-row header (arm spanner x baseline), spanner underlines
 Ns <- read_adam("adsl") |> filter(ARM != "Screen Failure") |> count(TRT01P) |> deframe()
@@ -125,7 +124,7 @@ Ns <- read_adam("adsl") |> filter(ARM != "Screen Failure") |> count(TRT01P) |> d
 #' @param arm Full arm name for the N lookup
 #' @return "short (N=n)"
 arm_hdr <- function(short, arm) sprintf("%s (N=%s)", short, Ns[[arm]])
-ct <- clintable(final, use_labels = FALSE) |>
+ct <- clintable(final, use_labels = FALSE, coerce_character = TRUE) |>
   clin_column_headers(
     LBL = "", WEEK = c("", "", "Week"), SHIFT = c("", "", "Shift to"),
     `Placebo N`              = c(arm_hdr("Placebo", "Placebo"), "Normal at", "Baseline"),
@@ -134,6 +133,7 @@ ct <- clintable(final, use_labels = FALSE) |>
     `Xanomeline Low Dose H`  = c(arm_hdr("Xan. Low", "Xanomeline Low Dose"), "High at", "Baseline"),
     `Xanomeline High Dose N` = c(arm_hdr("Xan. High", "Xanomeline High Dose"), "Normal at", "Baseline"),
     `Xanomeline High Dose H` = c(arm_hdr("Xan. High", "Xanomeline High Dose"), "High at", "Baseline")) |>
+  clin_spanner_rule() |>   # solid rule under each arm spanner (cols 4:5, 6:7, 8:9)
   flextable::valign(part = "header", valign = "bottom") |>
   flextable::align(part = "header", align = "center") |>
   flextable::align(j = "LBL", part = "header", align = "left") |>
@@ -144,15 +144,7 @@ ct <- clintable(final, use_labels = FALSE) |>
   flextable::width(j = COLS, width = 0.84)
 ct <- add_titles_footnotes(ct, TABLE, source_path = SOURCE)
 
-#' Apply the house default plus a solid underline beneath each arm spanner
-#' @param x A flextable
-#' @param ... Unused
-#' @return The styled flextable
-sd <- function(x, ...) {
-  x <- cdisc_table_default(x)
-  flextable::hline(x, i = 1, j = 4:9, border = officer::fp_border(color = "black", width = 1), part = "header")
-}
-old <- options(clinify_table_default = sd)
+# The arm-spanner underline is drawn by clin_spanner_rule() above (survives the
+# house styler's border_remove()), so the default clinify_table_default applies.
 write_clindoc(ct, file.path(OUTPUT_DIR, paste0(TABLE, ".docx")))
-options(old)
 cat("rows:", nrow(final), "\n")

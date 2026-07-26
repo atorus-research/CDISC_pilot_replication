@@ -67,10 +67,10 @@ for (p in PARAMS) for (ai in seq_along(ATPTS)) for (ti in seq_along(ARM)) {
   out[[length(out) + 1]] <- blank_row
 }
 final <- bind_rows(out) |> select(Measure, Position, Treatment, N, PRT, all_of(COLS))
-final[] <- lapply(final, function(x) { x[is.na(x)] <- ""; as.character(x) })
 
 # render: header labels bottom-aligned; body stats left-aligned, treatment centered.
-ct <- clintable(final, use_labels = FALSE) |>
+# coerce_character=TRUE coerces every column to character and renders NA as blank.
+ct <- clintable(final, use_labels = FALSE, coerce_character = TRUE) |>
   clin_column_headers(
     Measure = "Measure", Position = "Position", Treatment = "Treatment", N = "N",
     PRT = "Planned Relative Time",

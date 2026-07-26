@@ -35,11 +35,10 @@ visit_block <- function(wk, lab) {
          settings = layer_settings(
            format_strings = list(n_counts = f_str("xx (xxx%)", "n", "pct")),
            order_count_method = "byfactor", zero_count_display = "count_only")))), d)
-  b <- b[order(b$ord_layer_1), , drop = FALSE]
-  rc <- grep("^res", names(b), value = TRUE)
-  cats <- tibble(AVALC = as.character(b$rowlabel1),
-                 res1 = as.character(b[[rc[1]]]), res2 = as.character(b[[rc[2]]]),
-                 res3 = as.character(b[[rc[3]]]), p = "")
+  disp <- as_display(b)   # display-ready frame (rowlabel*/res*), build already ordered
+  cats <- tibble(AVALC = as.character(disp$rowlabel1),
+                 res1 = as.character(disp$res1), res2 = as.character(disp$res2),
+                 res3 = as.character(disp$res3), p = "")
   vn <- d |> count(TRTP, .drop = FALSE) |> deframe()
   n_row <- tibble(AVALC = "n",
                   res1 = sprintf("%2d", vn[["Placebo"]]),
@@ -53,9 +52,8 @@ visit_block <- function(wk, lab) {
 
 final <- top_spacer(bind_rows(visit_block(8, "Week 8"), visit_block(16, "Week 16"),
                               visit_block(24, "Week 24")))
-final[] <- lapply(final, function(x) { x[is.na(x)] <- ""; as.character(x) })
 
-ct <- clintable(final, use_labels = FALSE) |>
+ct <- clintable(final, use_labels = FALSE, coerce_character = TRUE) |>
   clin_column_headers(
     AVISIT = "", AVALC = "Assessment",
     res1 = arm_label("Placebo", hn[["Placebo"]]),

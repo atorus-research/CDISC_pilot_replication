@@ -6,55 +6,56 @@ source("R/setup.R"); source("R/helpers.R")
 
 TABLE <- "14-7.04"; SOURCE <- "programs/t-14-7.04.R"
 ARMS <- c("Placebo", "Xanomeline Low Dose", "Xanomeline High Dose")
+TOPLBL <- "Patients receiving at least one concomitant medication"
 
 cm   <- read_adam("cm")
 adsl <- read_adam("adsl") |> filter(ARM %in% ARMS)
-Nvec <- adsl |> count(ARM) |> deframe()                 # arm denominators
-armmap <- adsl |> distinct(USUBJID, ARM)
+Nvec <- adsl |> count(ARM) |> deframe()                 # arm denominators (header N)
+armmap <- adsl |> distinct(USUBJID, ARM)                # CM carries no treatment var
+cm2   <- cm   |> inner_join(armmap, by = "USUBJID") |> mutate(ARM = factor(ARM, ARMS))
+adslp <- adsl |> mutate(ARM = factor(ARM, ARMS))
 
-#' Format a count as "n (p%)": width-3 n, unpadded integer percent, bare "  0" for zero
-#' @param n Subject count (NA or 0 renders as "  0")
-#' @param arm Arm name, used to look up the denominator in Nvec
-#' @return A formatted count string
-fmt <- function(n, arm) ifelse(is.na(n) | n == 0, "  0",
-                               sprintf("%3d (%d%%)", n, as.integer(round(100 * n / Nvec[[arm]]))))
+# Native tplyr2 nested distinct-subject counts: outer therapeutic class (CMCLAS) x inner
+# medication (CMDECOD), n(%) = distinct subjects / arm N. pop_data supplies the ADSL arm
+# denominators (86/84/84) so an arm absent from a level renders "  0" (zero_count_display).
+# f_str("xxx (x%)", ...) => width-3 n and an unpadded single-char percent, e.g. "  8 (9%)".
+# total_row rolls the distinct-subject grand total into the TOPLBL "at least one" row.
+b <- tplyr_build(tplyr_spec(cols = "ARM",
+       pop_data = pop_data(cols = c("ARM" = "ARM")),
+       layers = tplyr_layers(group_count(c("CMCLAS", "CMDECOD"),
+         settings = layer_settings(
+           distinct_by = "USUBJID",
+           format_strings = list(n_counts = f_str("xxx (x%)", "distinct_n", "distinct_pct")),
+           zero_count_display = "count_only",
+           total_row = TRUE, total_row_label = TOPLBL)))),
+     cm2, pop_data = adslp)
+disp <- as_display(b)                                   # rowlabel1=CMCLAS, rowlabel2=CMDECOD, res1..3
+names(disp)[match(c("res1", "res2", "res3"), names(disp))] <- c("P", "L", "H")
 
-# distinct-subject counts per arm at three levels
-n_atleast <- cm |> distinct(USUBJID) |> inner_join(armmap, by = "USUBJID") |> count(ARM)
-n_class   <- cm |> distinct(USUBJID, CMCLAS) |> inner_join(armmap, by = "USUBJID") |>
-  count(CMCLAS, ARM)
-n_med     <- cm |> distinct(USUBJID, CMCLAS, CMDECOD) |> inner_join(armmap, by = "USUBJID") |>
-  count(CMCLAS, CMDECOD, ARM)
+# split the display frame: the grand-total "at least one" row, the class (outer) rows, and
+# the medication (inner) rows. as_display() emits meds alphabetically within each class.
+top     <- disp[disp$rowlabel1 == TOPLBL, ]
+classes <- disp[disp$rowlabel2 == "" & disp$rowlabel1 != TOPLBL, ]
+meds    <- disp[disp$rowlabel2 != "", ]
+meds$pbo <- as.integer(stringr::str_extract(meds$P, "\\d+"))   # Placebo count drives med order
 
-#' Reduce a (level-filtered) count tibble to a named integer vector over ARMS
-#' @param df A tibble with ARM and n columns
-#' @return An integer vector named by ARMS, 0 where an arm is absent
-counts <- function(df) {
-  v <- setNames(integer(length(ARMS)), ARMS)
-  m <- setNames(df$n, as.character(df$ARM)); v[names(m)] <- m; v
-}
-
-#' Build one display row: label plus formatted per-arm counts
+#' Build one display row from a single-row slice of the display frame
 #' @param label Row label (therapeutic class or indented medication)
-#' @param cnt Named count vector over ARMS from counts()
+#' @param r One-row data frame carrying P/L/H formatted count strings
 #' @return A one-row tibble with LBL/P/L/H columns
-row_of <- function(label, cnt) tibble(LBL = label,
-  P = fmt(cnt[["Placebo"]], "Placebo"),
-  L = fmt(cnt[["Xanomeline Low Dose"]], "Xanomeline Low Dose"),
-  H = fmt(cnt[["Xanomeline High Dose"]], "Xanomeline High Dose"))
+row_of <- function(label, r) tibble(LBL = label, P = r$P, L = r$L, H = r$H)
 blank <- tibble(LBL = "", P = "", L = "", H = "")
 
-acc <- list(row_of("Patients receiving at least one concomitant medication", counts(n_atleast)))
-for (cls in sort(unique(n_class$CMCLAS))) {
+acc <- list(row_of(TOPLBL, top))
+for (cls in sort(unique(classes$rowlabel1))) {          # classes alphabetical
   acc[[length(acc) + 1]] <- blank
-  acc[[length(acc) + 1]] <- row_of(cls, counts(n_class |> filter(CMCLAS == cls)))
-  meds <- n_med |> filter(CMCLAS == cls)
-  # order: descending by Placebo count, then medication name ascending
-  ord <- meds |> group_by(CMDECOD) |>
-    summarize(pbo = sum(n[ARM == "Placebo"]), .groups = "drop") |>
-    arrange(desc(pbo), CMDECOD)
-  for (md in ord$CMDECOD)
-    acc[[length(acc) + 1]] <- row_of(paste0("    ", md), counts(meds |> filter(CMDECOD == md)))
+  acc[[length(acc) + 1]] <- row_of(cls, classes[classes$rowlabel1 == cls, ])
+  # order: descending by Placebo count, ties broken by medication name ascending
+  # (stable sort over the already-alphabetical med rows)
+  md <- meds[meds$rowlabel1 == cls, ]
+  md <- md[order(-md$pbo), ]
+  for (i in seq_len(nrow(md)))
+    acc[[length(acc) + 1]] <- row_of(paste0("    ", md$rowlabel2[i]), md[i, ])
 }
 final <- bind_rows(acc)
 
@@ -64,7 +65,7 @@ final <- bind_rows(acc)
 #' @param n Arm denominator
 #' @return A wrapped header label string
 al <- function(arm, n) arm_label(arm, n)
-ct <- clintable(final, use_labels = FALSE) |>
+ct <- clintable(final, use_labels = FALSE, coerce_character = TRUE) |>
   clin_column_headers(
     LBL = "Therapeutic class, n (%)",
     P = al("Placebo", Nvec[["Placebo"]]),
@@ -80,4 +81,4 @@ ct <- clintable(final, use_labels = FALSE) |>
   flextable::set_table_properties(align = "center")
 ct <- add_titles_footnotes(ct, TABLE, source_path = SOURCE)
 write_clindoc(ct, file.path(OUTPUT_DIR, paste0(TABLE, ".docx")))
-cat("rows:", nrow(final), " classes:", length(unique(n_class$CMCLAS)), " meds:", nrow(distinct(n_med, CMDECOD)), "\n")
+cat("rows:", nrow(final), " classes:", nrow(classes), " meds:", nrow(meds), "\n")

@@ -64,13 +64,12 @@ final <- left_join(aval, chg, by = c("TRTPN", "TRTP", "AVISITN", "AVISIT", "SET"
   ungroup() |>
   mutate(TRTP = ifelse(ORD == 1, TRTP, "")) |>   # arm label only on the Baseline row
   select(TRTP, AVISIT, n, mean, sd, md, mn, mx, bmn, bsd, meanc, sdc, mdc, mnc, mxc)
-final[] <- lapply(final, function(x) { x[is.na(x)] <- ""; as.character(x) })
 
 # --- render: two-row header, spanned "Change from baseline" block ------------
 # Header row 1 = spanner (over the 5 CHG columns only); row 2 = labels, with
 # "Bsln\nMean"/"Bsln\nStd" as stacked two-line labels. valign = bottom keeps the
 # single-line labels on the baseline with "Bsln" one line above.
-ct <- clintable(final, use_labels = FALSE) |>
+ct <- clintable(final, use_labels = FALSE, coerce_character = TRUE) |>
   clin_column_headers(
     TRTP   = c("", ""),
     AVISIT = c("", ""),
