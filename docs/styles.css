@@ -1,0 +1,28 @@
+/* Embedded PDF viewer for each output page */
+.pdf-viewer {
+  margin: 1.25rem 0;
+}
+.pdf-viewer iframe {
+  width: 100%;
+  height: 80vh;
+  min-height: 600px;
+  border: 1px solid var(--bs-border-color, #dee2e6);
+  border-radius: 4px;
+  background: #fff;
+}
+
+/* Give the download / view buttons a little breathing room */
+.btn.btn-sm {
+  margin: 0.15rem 0.25rem 0.5rem 0;
+}
+
+/* Source-code blocks on the code pages: cap height so long programs scroll */
+.code-page pre.sourceCode {
+  max-height: 75vh;
+  overflow: auto;
+}
+
+/* Tidy up the outputs listing table */
+.quarto-listing .listing-title {
+  font-weight: 600;
+}

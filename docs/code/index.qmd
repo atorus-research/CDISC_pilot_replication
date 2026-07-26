@@ -1,0 +1,31 @@
+---
+title: "Code Reference"
+description: "The setup, helpers, shared builders, and table programs that produce the outputs."
+---
+
+The project is organised so that shared logic lives in `R/` and each table is a thin
+program in `tables/` that sources the setup and calls a builder or assembles its own
+display frame.
+
+## Setup & Config
+
+The session scaffolding and house style, sourced by every table program.
+
+- [`R/setup.R`](setup.qmd) — libraries, data paths, `read_adam()`, fidelity date.
+- [`R/helpers.R`](helpers.qmd) — number/label formatters, spacer rows, p-value formatters.
+- [`R/clinify_defaults.R`](clinify_defaults.qmd) — clinify house style (fonts, rules, page geometry, row pitch).
+- [`R/tplyr2_defaults.R`](tplyr2_defaults.qmd) — project-wide tplyr2 rounding/format defaults.
+- [`R/titles.R`](titles.qmd) — titles/footnotes from `data/titles.xlsx` with token substitution.
+
+## Shared Builders
+
+Reusable engines behind the repeated table families.
+
+- [`R/efficacy.R`](efficacy.qmd) — `build_efficacy_table()`, the ANCOVA efficacy builder (14-3.x).
+- [`R/ae.R`](ae.qmd) — `build_ae_table()`, the nested adverse-event builder (14-5.x).
+
+## Table Programs
+
+One program per output under `tables/`. Each is listed with its full title in the
+sidebar under **Code Reference → Table Programs**, and links back to the output it
+produces.

@@ -1,0 +1,23 @@
+---
+title: "Outputs"
+description: "All 30 rebuilt CDISC pilot tables. Select one to view its PDF in-page."
+listing:
+  id: outputs-listing
+  contents: "outputs/*.qmd"
+  type: table
+  fields: [title, categories]
+  field-display-names:
+    title: "Table"
+    categories: "Population"
+  sort: "title"
+  sort-ui: true
+  filter-ui: true
+  page-size: 30
+---
+
+The 30 safety and efficacy tables, rebuilt with **tplyr2** (summaries) and **clinify**
+(styling). Select a table to open its page, where the DOCX is shown as an embedded PDF
+viewer with links to download the PDF / DOCX and view the program that builds it.
+
+:::{#outputs-listing}
+:::

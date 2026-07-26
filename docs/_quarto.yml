@@ -1,0 +1,64 @@
+project:
+  type: website
+  output-dir: _site
+  pre-render: python3 generate_pages.py
+  resources:
+    - "pdf/**"
+
+website:
+  title: "CDISC Pilot Replication"
+  description: "Modern rebuild of the CDISC pilot clinical tables — tplyr2 + clinify → DOCX."
+  page-navigation: true
+  repo-url: https://github.com/atorus-research/CDISC_pilot_replication
+  repo-branch: nextgen
+  navbar:
+    left:
+      - text: "Home"
+        href: index.qmd
+      - text: "Outputs"
+        href: outputs.qmd
+      - text: "Code Reference"
+        href: code/index.qmd
+      - text: "About"
+        href: about.qmd
+    right:
+      - icon: github
+        href: https://github.com/atorus-research/CDISC_pilot_replication
+        aria-label: GitHub
+  sidebar:
+    style: floating
+    search: true
+    contents:
+      - index.qmd
+      - about.qmd
+      - section: "Outputs"
+        href: outputs.qmd
+        contents:
+          - auto: "outputs/*.qmd"
+      - section: "Code Reference"
+        href: code/index.qmd
+        contents:
+          - section: "Setup & Config"
+            contents:
+              - code/setup.qmd
+              - code/helpers.qmd
+              - code/clinify_defaults.qmd
+              - code/tplyr2_defaults.qmd
+              - code/titles.qmd
+          - section: "Shared Builders"
+            contents:
+              - code/efficacy.qmd
+              - code/ae.qmd
+          - section: "Table Programs"
+            contents:
+              - auto: "code/t_*.qmd"
+
+format:
+  html:
+    theme: cosmo
+    css: styles.css
+    toc: true
+    code-copy: true
+    code-overflow: wrap
+    grid:
+      sidebar-width: 320px

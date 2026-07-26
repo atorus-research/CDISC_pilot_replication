@@ -1,0 +1,77 @@
+---
+title: "About"
+description: "The original CDISC pilot reproduction and the 2026 revisit with modern package versions."
+---
+
+## The CDISC pilot
+
+The [CDISC pilot project](https://github.com/cdisc-org/sdtm-adam-pilot-project) is a
+publicly available example submission built on the (fictional) CDISCPILOT01 Alzheimer's
+study. Its statistical appendix — 30 safety and efficacy tables covering disposition,
+demographics, primary/secondary efficacy endpoints, adverse events, laboratory results,
+vital signs, and concomitant medications — has become a common reference for clinical
+reporting tooling.
+
+## The original reproduction
+
+The first reproduction in this repository recreated those 30 tables in R using the
+reporting stack available at the time: **tidyverse** for data manipulation,
+**huxtable** for table construction, and **pharmaRTF** for producing the final RTF
+documents. The goal was a faithful, open-source reproduction of the pilot's outputs —
+matching the layout, statistics, and presentation of the reference tables.
+
+That work established the analysis logic (the derivations, models, and counts behind
+each table) and the fixture of "known-good" RTF outputs that everything since has been
+measured against.
+
+## The 2026 revisit
+
+In 2026 the project was **rebuilt from the ground up** on a modern reporting stack, while
+holding the outputs visually identical to the original RTFs:
+
+- **[tplyr2](https://github.com/atorus-research/tplyr2)** — the next-generation Tplyr —
+  produces the count, descriptive, and shift summaries via a declarative spec/layer grammar.
+- **[clinify](https://github.com/atorus-research/clinify)** styles those summaries and
+  writes **Word (`.docx`)** documents, replacing the huxtable + pharmaRTF RTF path.
+- **mmrm** provides the mixed-model repeated-measures analysis (replacing an older
+  random-slope `lme4` fit); **coin** provides the Cochran–Mantel–Haenszel tests.
+- **renv** pins the whole environment for reproducibility.
+
+Model-based results were validated to the digit against the reference SAS output where it
+was available (the MMRM and CMH tables in particular). Where a modern method legitimately
+produces a different number than the 2020 output, the difference is **documented as a
+deliberate divergence** rather than reproduced — the aim was correct modern values, not a
+bug-for-bug clone.
+
+### Verifying fidelity
+
+Every rebuilt DOCX is checked against the original RTF by a fidelity harness that renders
+both to PDF through the same LibreOffice engine and then compares them:
+
+- **single-page tables** — a masked pixel-diff (with registration and gridline-shift
+  tolerances) confirms the rendering is visually identical;
+- **multi-page tables** — a pagination-agnostic content check compares the unique body
+  lines and a wrapping-immune token multiset, so re-pagination doesn't mask a value change.
+
+### Feeding fixes upstream
+
+Because this project's maintainers also maintain tplyr2 and clinify, the rebuild doubled
+as a real-world stress test. Recurring hand-written workarounds were filed as upstream
+feature requests (each with a runnable reprex); the fixes shipped in **tplyr2 0.2.0** and
+**clinify 0.4.0** and were then adopted back into these programs — verified to keep every
+output byte-identical. As a result, all but three structurally-bespoke tables are now built
+directly from tplyr2 + clinify with very little custom code.
+
+## Reproducing this repository
+
+```bash
+# restore the pinned environment
+Rscript -e 'renv::restore()'
+
+# build any table (writes outputs/<id>.docx)
+Rscript tables/t_14_3_01.R
+
+# verify a table against the original RTF
+python3 verify/compare_table.py 14-3.01            # single-page: pixel diff
+python3 verify/compare_table.py 14-6.04 --content  # multi-page: content diff
+```
