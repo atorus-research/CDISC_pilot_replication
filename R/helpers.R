@@ -3,21 +3,20 @@
 library(stringr)
 
 #' Format a number as a fixed-width, right-padded string
-#' @param var Numeric value to format
+#'
+#' Thin wrapper over `tplyr2::apply_formats()`: builds an `f_str` of `int_len`
+#' integer digits (plus `digits` decimals) and right-pads the result to `size`.
+#' NA renders as "".
+#'
+#' @param var Numeric value(s) to format
 #' @param digits Number of decimal places
 #' @param size Total field width, right-padded with spaces
 #' @param int_len Minimum width of the integer part
-#' @return Character scalar, "" when `var` is NA
+#' @return Character, "" when `var` is NA
 num_fmt <- function(var, digits = 0, size = 10, int_len = 3) {
-  if (is.na(var)) return("")
-  nsmall <- digits
-  if (digits > 0) digits <- digits + 1
-  stringr::str_pad(
-    format(round(var, nsmall), width = (int_len + digits), nsmall = nsmall),
-    side = "right", width = size
-  )
+  fmt <- if (digits > 0) paste0(strrep("x", int_len), ".", strrep("x", digits)) else strrep("x", int_len)
+  tplyr2::apply_formats(tplyr2::f_str(fmt, "x"), x = var, na = "", width = size, pad = "right")
 }
-num_fmt <- Vectorize(num_fmt)
 
 #' Build a wrapped "<Arm> (N=n)" column label
 #' @param name Arm name
