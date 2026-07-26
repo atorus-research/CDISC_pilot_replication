@@ -1,0 +1,81 @@
+# R/helpers.R — shared formatters for row-bound model output and (N=) column labels
+
+library(stringr)
+
+#' Format a number as a fixed-width, right-padded string
+#' @param var Numeric value to format
+#' @param digits Number of decimal places
+#' @param size Total field width, right-padded with spaces
+#' @param int_len Minimum width of the integer part
+#' @return Character scalar, "" when `var` is NA
+num_fmt <- function(var, digits = 0, size = 10, int_len = 3) {
+  if (is.na(var)) return("")
+  nsmall <- digits
+  if (digits > 0) digits <- digits + 1
+  stringr::str_pad(
+    format(round(var, nsmall), width = (int_len + digits), nsmall = nsmall),
+    side = "right", width = size
+  )
+}
+num_fmt <- Vectorize(num_fmt)
+
+#' Build a wrapped "<Arm> (N=n)" column label
+#' @param name Arm name
+#' @param n Population count
+#' @param width Wrap width in characters
+#' @return Character scalar with "\n" line breaks
+arm_label <- function(name, n, width = 10) {
+  stringr::str_wrap(sprintf("%s (N=%s)", name, n), width = width)
+}
+
+#' Append blank rows to a data frame
+#' @param .data Data frame to pad
+#' @param n Number of blank rows to append
+#' @return `.data` with `n` blank rows appended
+pad_row <- function(.data, n = 1) {
+  .data[(nrow(.data) + 1):(nrow(.data) + n), ] <- ""
+  .data
+}
+
+#' Prepend a single blank row matching a data frame's columns
+#' @param df Data frame to prepend a spacer row to
+#' @return `df` with one leading blank row (house-style header/body gap)
+top_spacer <- function(df) {
+  blank <- df[1, , drop = FALSE]
+  blank[] <- ""
+  dplyr::bind_rows(blank, df)
+}
+
+#' Compute a one-way ANOVA p-value versus treatment, formatted to a fixed width
+#' @param data Data frame
+#' @param var Response variable name
+#' @param trt Treatment variable name
+#' @return Character scalar (width 10, 4 decimals)
+aov_p_str <- function(data, var, trt = "TRT01P") {
+  f <- stats::as.formula(paste(var, "~", trt))
+  p <- summary(stats::aov(f, data, na.action = stats::na.omit))[[1]][["Pr(>F)"]][1]
+  format(round(p, 4), width = 10, nsmall = 4)
+}
+
+#' Compute a Fisher's exact p-value, formatted with a "<.0001" floor
+#' @param res Response factor values
+#' @param cats Grouping factor values
+#' @param width Field width for non-floored values
+#' @return Character scalar
+fish_p_str <- function(res, cats, width = 10) {
+  p <- suppressWarnings(fisher.test(factor(res), factor(cats))$p.value)
+  if (round(p, 4) == 0) return("<.0001")
+  format(round(p, 4), width = width, nsmall = 4)
+}
+
+#' Compute a Pearson chi-square p-value versus treatment, formatted with a "<.0001" floor
+#' @param data Data frame
+#' @param var Response variable name
+#' @param trt Treatment variable name
+#' @return Character scalar
+chi_p_str <- function(data, var, trt = "TRT01P") {
+  p <- suppressWarnings(
+    stats::chisq.test(factor(data[[var]]), factor(data[[trt]]))$p.value)
+  if (round(p, 4) == 0) return("<.0001")
+  format(round(p, 4), width = 10, nsmall = 4)
+}

@@ -1,0 +1,66 @@
+name: Publish docs site
+
+# Builds the Quarto site in docs/ and publishes it to the gh-pages branch.
+# The 30 output DOCX are converted to PDF with LibreOffice at build time (docx
+# stays the single source of truth); the site's pre-render step regenerates the
+# per-output and per-code pages from the current R source.
+
+on:
+  push:
+    branches: [nextgen, master]
+    paths:
+      - "docs/**"
+      - "tables/**"
+      - "R/**"
+      - "outputs/**"
+      - ".github/workflows/publish-docs.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write   # quarto publish pushes the rendered site to the gh-pages branch
+
+concurrency:
+  group: publish-docs
+  cancel-in-progress: true
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Install LibreOffice + Courier New (for docx -> pdf)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libreoffice-writer fontconfig
+          echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" \
+            | sudo debconf-set-selections
+          sudo apt-get install -y ttf-mscorefonts-installer
+          sudo fc-cache -f
+
+      - name: Convert outputs (docx -> pdf)
+        run: |
+          mkdir -p docs/pdf
+          soffice --headless --convert-to pdf --outdir docs/pdf outputs/*.docx
+          echo "Converted $(ls docs/pdf/*.pdf | wc -l) PDFs"
+
+      - name: Set up Python (pre-render page generator)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+
+      - name: Render site (runs the pre-render page generator)
+        uses: quarto-dev/quarto-actions/render@v2
+        with:
+          path: docs
+
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: docs/_site
+          publish_branch: gh-pages   # created automatically on first run

@@ -1,0 +1,32 @@
+---
+title: "CDISC Pilot Replication"
+subtitle: "A modern rebuild of the CDISC pilot clinical tables"
+---
+
+This site documents the **CDISC Pilot Replication** project: a full reproduction of the
+30 safety and efficacy tables from the CDISC pilot study, rebuilt with a modern,
+open-source R reporting stack and rendered as Word (`.docx`) documents that are
+**visually faithful** to the original 2020 RTF outputs.
+
+## The stack
+
+| Concern | Package |
+|---|---|
+| Table summaries (counts, descriptive stats, shifts) | [**tplyr2**](https://github.com/atorus-research/tplyr2) |
+| Table styling → DOCX | [**clinify**](https://github.com/atorus-research/clinify) |
+| Mixed-model repeated measures (MMRM) | **mmrm** |
+| Cochran–Mantel–Haenszel tests | **coin** |
+| Data wrangling | **tidyverse** |
+| Reproducible environment | **renv** |
+
+## Explore
+
+- [**Outputs**](outputs.qmd) — browse all 30 tables, each with an in-page PDF viewer and downloads.
+- [**Code Reference**](code/index.qmd) — the setup, helpers, shared builders, and every table program, with source.
+- [**About**](about.qmd) — the original reproduction and the 2026 revisit.
+
+::: {.callout-note}
+Every output is verified against the original RTF with a pixel-diff / content-diff fidelity
+harness. Where a value differs by design (e.g. modern MMRM vs. the legacy random-slope fit),
+the divergence is documented rather than cloned.
+:::
