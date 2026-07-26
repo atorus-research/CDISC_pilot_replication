@@ -20,6 +20,9 @@ import glob
 DOCS = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(DOCS)
 
+# Branch the GitHub source/download links point at.
+BRANCH = "master"
+
 # Curated one-line descriptions for the shared R files (setup/config + builders).
 R_DESCRIPTIONS = {
     "setup.R": "Session setup: library loads, data paths, `read_adam()` for reading ADaM / SDTM "
@@ -95,8 +98,8 @@ categories: ["{meta['pop']}"]
 :::
 
 [Download PDF](../pdf/{tid}.pdf){{.btn .btn-outline-secondary .btn-sm}}
-[Download DOCX](https://github.com/atorus-research/CDISC_pilot_replication/raw/nextgen/outputs/{tid}.docx){{.btn .btn-outline-secondary .btn-sm}}
-[View program on GitHub](https://github.com/atorus-research/CDISC_pilot_replication/blob/nextgen/tables/{slug_r}){{.btn .btn-outline-secondary .btn-sm}}
+[Download DOCX](https://github.com/atorus-research/CDISC_pilot_replication/raw/{BRANCH}/outputs/{tid}.docx){{.btn .btn-outline-secondary .btn-sm}}
+[View program on GitHub](https://github.com/atorus-research/CDISC_pilot_replication/blob/{BRANCH}/tables/{slug_r}){{.btn .btn-outline-secondary .btn-sm}}
 
 See the program that builds this output: [`tables/{slug_r}`](../code/{slug_r[:-2]}.qmd).
 """
@@ -118,7 +121,7 @@ categories: ["{section}"]
 
 *{description}*
 
-[View on GitHub](https://github.com/atorus-research/CDISC_pilot_replication/blob/nextgen/{github_path}){{.btn .btn-outline-secondary .btn-sm}}
+[View on GitHub](https://github.com/atorus-research/CDISC_pilot_replication/blob/{BRANCH}/{github_path}){{.btn .btn-outline-secondary .btn-sm}}
 
 ```r
 {source}

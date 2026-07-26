@@ -10,7 +10,7 @@ website:
   description: "Modern rebuild of the CDISC pilot clinical tables — tplyr2 + clinify → DOCX."
   page-navigation: true
   repo-url: https://github.com/atorus-research/CDISC_pilot_replication
-  repo-branch: nextgen
+  repo-branch: master
   navbar:
     left:
       - text: "Home"
