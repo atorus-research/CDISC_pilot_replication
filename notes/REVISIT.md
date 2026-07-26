@@ -117,42 +117,39 @@ longer wins over the true near-zero shift. No-op for tables with a single clear 
   packages cut releases to main.** (Nothing functional depends on this — the installed builds are
   correct and the full suite is green; it's purely reproducibility hygiene for the lockfile.)
 
-## Post-cleanup redundancy assessment (2026-07-25) — future upstream feature candidates
-The final code review surfaced recurring hand-written boilerplate that would be better as native
-clinify/tplyr2 features. NONE block the pilot (all resolved or cleanly worked around); listed by leverage.
+## Post-cleanup redundancy review + upstream issues filed (2026-07-25)
+The final code review surfaced recurring hand-written boilerplate. Each candidate was VERIFIED against the
+INSTALLED packages before filing (drafting agents ran reprexes), which debunked three as already-supported.
+Net: **8 issues filed** (each with a runnable reprex), **2 comments** on existing issues, **3 adopt-in-pilot**.
+NONE block the pilot — all current code is verified-correct; the adopt-in-pilot items are optional simplifications.
 
-### clinify — display concerns re-implemented per table
-- **NA-to-blank on render** — `final[] <- lapply(final, \(x){x[is.na(x)]<-""; as.character(x)})` recurs in
-  nearly every table purely to feed `clintable()`; `clintable()` should coerce + blank NA natively.
-- **Spanner-underline option** — the arm-spanner rule (hline beneath header row 1 across the value cols) is
-  re-added per table via a raw `flextable::hline` inside a `clinify_table_default` override (14-6.01/.02/.03,
-  14-4.01, …). A native spanner-underline option removes it.
-- **Row grouping / repeated-label suppression + spacer rows** — vitals/AE blank repeated stub labels
-  (Measure/Position/Treatment, SOC/PARAM) and inject blank spacer rows by hand. A clinify row-grouping
-  feature would own this AND is the same feature that resolves the deferred pagination class-③ (repeat group
-  labels across page breaks) — highest leverage of anything here.
-- Known/tracked: header+spanner big-N injection (= clinify FR #15; still hand-rolled
-  `Ns <- adsl |> count() |> deframe()` + `"Label (N=n)"`), titles/footnotes-from-spreadsheet (`read_titles`;
-  feature-requests item 2), and generic header `valign="bottom"`/`align="center"` defaults.
+### Filed — genuine gaps
+tplyr2:
+- **#33** `group_count`: `missing_count` drops the Missing row when the count is 0 (and blanks cells for columns
+  with no missings) — blocks a clean 14-1.02 Missing row.
+- **#34** `group_desc`: option for a record-count `n` (assessed) vs the current non-missing `n` — 14-7.0x, 14-6.01.
+- **#35** `group_shift`: emit the per-baseline-group denominator ("n") row for `shift_denom="column"` — 14-6.04/.05/.06.
+- **#36** add a display-ready extraction helper (`as_display()` / drop the internal `ord_*` cols) — ~11 tables.
+- **#37** (scope question) association-test p-value column (Fisher/CMH) for count & shift layers — 14-5.01, 14-6.0x.
+clinify:
+- **#104** `clintable()`: render columns verbatim (accept non-character cols). NA-blank already works via flextable.
+- **#105** `clin_column_headers`: option to draw a rule (underline) beneath a spanner header row — 14-6.0x, 14-4.01.
+- **#106** in-body row-group stub suppression + spacer rows that repeat the label on continuation pages
+  (distinct from `clin_group_by`'s banner+page-break model) — vitals + AE; **also resolves pagination class-③**.
 
-### tplyr2 — summary features that would let more tables drop bespoke code
-- **`f_str` percent-padding option** — UNBLOCKS 14-7.04 (CM): its nested distinct-subject count is exactly
-  `group_count(distinct_by=)` with an n(%) `f_str`; only the unpadded integer percent "(8%)" forces the
-  hand-rolled dplyr version. Smallest change, direct payoff (one of the 4 non-tplyr2 tables).
-- **`add_total_group`** — 14-1.01/.02 and 14-2.01 build the Total column by row-duplicating adsl
-  (`TRT01P = "Total"`); a native total treatment group is classic Tplyr.
-- **`set_missing_count`** — 14-1.02 splices a hardcoded all-zero "Missing" row.
-- **Record-count vs non-missing `n`** — vitals (14-7.01/.02/.03) + 14-6.01 recompute a record-count n
-  because `group_desc`'s n is non-missing-only; an option would drop the recount+join.
-- **`group_shift` should emit the `n` row** — 14-6.04/.05/.06 recompute per-baseline-group denominators with
-  `count()` + `pivot_wider` even though `shift_denom="column"` already has them.
-- **Display-ready ordered result** — every table greps `^res` cols, reorders by `ord_layer_1`, recasts to
-  character; an `as_display()` step would centralize this reshape.
-- **Standalone `f_str` formatter** — `num_fmt()` duplicates `f_str` field-width logic for external model
-  output (p-values, LS-means); exposing `f_str` for scalar/vector formatting removes the copy.
-- Scope question — a built-in association-test column (Fisher in 14-5.01/14-6.02/.03, CMH in 14-6.05/.06):
-  computed via a parallel count+test pipeline outside tplyr2; historically out of Tplyr's inferential scope,
-  so lowest priority / a design decision rather than a clear gap.
+### Commented on existing (not duplicated)
+- clinify **#15** (auto-insert header N's) — added the pilot's hand-rolled big-N reprex.
+- clinify **#7** (titles/footnotes from a data source) — added the `read_titles` / titles.xlsx reprex (also covers #6).
+
+### Already supported — NOT filed; adopt in the pilot to drop bespoke code (optional)
+- **`f_str` unpadded percent** — the "(8%)" blocker was a FALSE premise: a single-char token
+  `f_str("xxx (x%)", "distinct_n", "distinct_pct")` already emits unpadded/variable-width percents. So **14-7.04
+  (CM) CAN use `group_count(c("CMCLAS","CMDECOD"), distinct_by="USUBJID", ...)`** — the "4 tables don't use
+  tplyr2" count is really **3 structural** (14-1.03 crosstab, 14-3.11 MMRM, 14-3.10 wide) **+ 14-7.04 adoptable**.
+- **`total_group()`** — `tplyr_spec(cols="TRT01P", total_groups = list(total_group("TRT01P")))` replaces the manual
+  `bind_rows(adsl0, mutate(adsl0, TRT01P="Total"))` in 14-1.01/.02 and 14-2.01 (applies to pop_data too).
+- **`apply_formats()`** — the exported standalone f_str formatter (handles multi-var + lt/gt thresholds) replaces
+  R/helpers.R `num_fmt`/`fish_p_str`/`chi_p_str` for external model/p-value formatting.
 
 ## Resolved (kept for provenance — no action)
 - tplyr2 #13/#14 (count column order + display quirks) — merged in PR #15, incorporated;
