@@ -2,6 +2,10 @@
 # Table 14-1.02: Summary of End of Study Data   (Population: Intent-to-Treat)
 # Produces: outputs/14-1.02.docx
 # Source: ADSL; completion status + termination reason as n(%) by arm/Total, Fisher's exact p-values.
+library(tidyverse)
+library(tplyr2)
+library(clinify)
+
 source("R/setup.R"); source("R/helpers.R")
 
 TABLE <- "14-1.02"; SOURCE <- "programs/t-14-1-02.R"

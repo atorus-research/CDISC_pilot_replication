@@ -3,6 +3,10 @@
 # Produces: outputs/14-6.01.docx
 # Source: adlbc/adlbh (adsl for arm Ns); tplyr2 group_desc mean(SD) of AVAL & CHG by
 #   visit, assembled here into transposed per-arm N | Mean (SD) | Change columns.
+library(tidyverse)
+library(tplyr2)
+library(clinify)
+
 source("R/setup.R")
 source("R/helpers.R")
 

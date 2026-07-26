@@ -4,6 +4,10 @@
 # Produces: outputs/14-6.05.docx
 # Source: adlbc + adlbh (ANL01FL one record per subject per analyte, adsl for arm Ns);
 #   tplyr2 group_shift column-% shift-to ANRIND by baseline (Normal/High), coin::cmh_test p per analyte.
+library(tidyverse)
+library(tplyr2)
+library(clinify)
+
 source("R/setup.R")
 source("R/helpers.R")
 suppressPackageStartupMessages(library(coin))

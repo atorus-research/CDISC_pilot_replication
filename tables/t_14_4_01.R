@@ -2,6 +2,10 @@
 # Table 14-4.01: Summary of Planned Exposure to Study Drug, as of End of Study   (Population: Safety)
 # Produces: outputs/14-4.01.docx
 # Source: ADSL; descriptive stats of AVGDD and CUMDOSE by arm x population (Completers / Safety).
+library(tidyverse)
+library(tplyr2)
+library(clinify)
+
 source("R/setup.R"); source("R/helpers.R")
 
 TABLE <- "14-4.01"; SOURCE <- "programs/t-14-4-01.R"

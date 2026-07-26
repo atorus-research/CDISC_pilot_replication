@@ -2,6 +2,10 @@
 # Table 14-1.01: Summary of Populations   (Population: All Subjects)
 # Produces: outputs/14-1.01.docx
 # Source: ADSL; per population flag, n(%) with flag = "Y" by arm + Total via tplyr2 group_count.
+library(tidyverse)
+library(tplyr2)
+library(clinify)
+
 source("R/setup.R"); source("R/helpers.R")
 
 TABLE <- "14-1.01"; SOURCE <- "programs/t-14-1-01.R"

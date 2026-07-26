@@ -2,6 +2,10 @@
 # Table 14-1.03: Summary of Number of Subjects By Site   (Population: All Subjects)
 # Produces: outputs/14-1.03.docx
 # Source: ADSL (ITTFL == "Y"); direct crosstab of site x arm subject counts for ITT/Eff/Com flags.
+library(tidyverse)
+library(tplyr2)
+library(clinify)
+
 source("R/setup.R"); source("R/helpers.R")
 
 TABLE <- "14-1.03"; SOURCE <- "programs/t-14-1-03.R"

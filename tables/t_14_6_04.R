@@ -4,6 +4,10 @@
 # Produces: outputs/14-6.04.docx
 # Source: adlbc + adlbh (adsl for arm Ns); tplyr2 group_shift column-% shift-to ANRIND
 #   by baseline BNRIND (Normal/High), per PARAM x visit.
+library(tidyverse)
+library(tplyr2)
+library(clinify)
+
 source("R/setup.R")
 source("R/helpers.R")
 

@@ -1,5 +1,10 @@
 # R/efficacy.R — build the ANCOVA efficacy tables (ADAS change-from-baseline; CIBIC score)
 
+library(tidyverse)
+library(tplyr2)
+library(clinify)
+# car, emmeans and rlang are referenced with :: (no attach needed).
+
 # Descriptive-statistic format strings shared by the descriptive blocks.
 .eff_fs <- list(
   "  n"              = f_str("xx", "n"),

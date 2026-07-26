@@ -2,6 +2,10 @@
 # Table 14-7.01: Summary of Vital Signs at Baseline and End of Treatment   (Population: Safety)
 # Produces: outputs/14-7.01.docx
 # Source: ADVS BP/pulse at Baseline/Week 24/End of Treatment summarized with tplyr2 group_desc; ADSL for arm N.
+library(tidyverse)
+library(tplyr2)
+library(clinify)
+
 source("R/setup.R"); source("R/helpers.R")
 
 TABLE <- "14-7.01"; SOURCE <- "programs/t-14-7.01.R"

@@ -2,6 +2,10 @@
 # Table 14-3.11: ADAS Cog (11) - Repeated Measures Analysis of Change from Baseline to Week 24   (Population: Efficacy)
 # Produces: outputs/14-3.11.docx
 # mmrm() unstructured-covariance repeated-measures fit on adadas (PARAMCD ACTOT) CHG; LS means + pairwise contrasts via emmeans.
+library(tidyverse)
+library(tplyr2)
+library(clinify)
+
 source("R/setup.R"); source("R/helpers.R")
 suppressPackageStartupMessages({library(mmrm); library(emmeans)})
 

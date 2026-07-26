@@ -2,6 +2,10 @@
 # Table 14-3.13: CIBIC+ - Categorical Analysis - LOCF   (Population: Efficacy)
 # Produces: outputs/14-3.13.docx
 # Per-visit CIBIC+ category counts (adcibc) with a row-mean-scores CMH p-value via coin::cmh_test.
+library(tidyverse)
+library(tplyr2)
+library(clinify)
+
 source("R/setup.R"); source("R/helpers.R")
 suppressPackageStartupMessages(library(coin))
 

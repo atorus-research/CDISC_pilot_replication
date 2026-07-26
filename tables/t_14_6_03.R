@@ -4,6 +4,10 @@
 # Produces: outputs/14-6.03.docx
 # Source: adlbcpv/adlbhpv (one on-treatment analysis record per subject per PARAM, adsl for
 #   arm Ns); tplyr2 group_count subject n(%) by arm x ANRIND category, Fisher's-exact p per PARAM.
+library(tidyverse)
+library(tplyr2)
+library(clinify)
+
 source("R/setup.R")
 source("R/helpers.R")
 

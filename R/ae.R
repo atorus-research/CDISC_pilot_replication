@@ -1,5 +1,9 @@
 # R/ae.R — build the AE-incidence-by-SOC/preferred-term tables (all and serious TEAEs)
 
+library(tidyverse)
+library(tplyr2)
+library(clinify)
+
 #' Build and write an AE-incidence-by-SOC/preferred-term table
 #' @param table Table id (e.g. "14-5.01")
 #' @param source_path Source program path shown in the footer
@@ -11,7 +15,9 @@ build_ae_table <- function(table, source_path, serious = FALSE) {
   if (serious) adae <- adae |> filter(AESER == "Y")
   adae <- adae |> mutate(TRTA = factor(TRTA, levels = ARMS))
   adsl <- read_adam("adsl")
-  N <- c(86, 84, 84)   # safety-population denominators (Placebo, Low, High)
+  # Population denominators per arm, from the same ADSL/treatment variable the tplyr2
+  # pop_data uses (TRT01A), ordered Placebo / Low / High.
+  N <- unname(adsl |> count(TRT01A) |> deframe() |> (\(v) v[ARMS])())
 
   spec <- tplyr_spec(
     cols = "TRTA",

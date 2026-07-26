@@ -2,6 +2,10 @@
 # Table 14-3.10: ADAS Cog (11) - Mean and Mean Change from Baseline over Time   (Population: Efficacy)
 # Produces: outputs/14-3.10.docx
 # Grouped dplyr descriptive of adadas (PARAMCD ACTOT) AVAL and change over Windowed + LOCF visits; rendered with clinify.
+library(tidyverse)
+library(tplyr2)
+library(clinify)
+
 source("R/setup.R"); source("R/helpers.R")
 
 TABLE <- "14-3.10"; SOURCE <- "programs/t-14-3-10.R"

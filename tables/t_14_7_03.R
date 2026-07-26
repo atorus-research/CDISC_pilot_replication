@@ -2,6 +2,10 @@
 # Table 14-7.03: Summary of Weight Change from Baseline at End of Treatment   (Population: Safety)
 # Produces: outputs/14-7.03.docx
 # Source: ADVS Weight (kg) AVAL and change (CHG) at Baseline/Week 24/End of Treatment via tplyr2 group_desc; ADSL for arm N.
+library(tidyverse)
+library(tplyr2)
+library(clinify)
+
 source("R/setup.R"); source("R/helpers.R")
 
 TABLE <- "14-7.03"; SOURCE <- "programs/t-14-7.03.R"

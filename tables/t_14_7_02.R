@@ -2,6 +2,10 @@
 # Table 14-7.02: Summary of Vital Signs Change from Baseline at End of Treatment   (Population: Safety)
 # Produces: outputs/14-7.02.docx
 # Source: ADVS change-from-baseline (CHG) at Week 24/End of Treatment summarized with tplyr2 group_desc; ADSL for arm N.
+library(tidyverse)
+library(tplyr2)
+library(clinify)
+
 source("R/setup.R"); source("R/helpers.R")
 
 TABLE <- "14-7.02"; SOURCE <- "programs/t-14-7.02.R"

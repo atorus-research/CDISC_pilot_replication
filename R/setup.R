@@ -1,13 +1,6 @@
-# R/setup.R — sourced by every table program; loads the stack and applies project defaults
-
-suppressPackageStartupMessages({
-  library(tidyverse)
-  library(haven)
-  library(tplyr2)
-  library(clinify)
-  library(flextable)
-  library(officer)
-})
+# R/setup.R — sourced by every table program; resolves paths and applies project defaults.
+# Packages are loaded by each program that uses them (and by the sourced config/builder
+# files), not here, so a program's imports declare what it actually depends on.
 
 # Resolve the project root regardless of the caller's working directory.
 .PROJ <- tryCatch(

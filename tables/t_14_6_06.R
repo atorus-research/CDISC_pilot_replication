@@ -3,6 +3,10 @@
 # Produces: outputs/14-6.06.docx
 # Source: adlbhy (adsl for arm Ns); tplyr2 group_shift column-% shift-to AVAL by baseline
 #   BASE (Normal=0/High=1) for two Hy's-law analytes (TRANSHY, HYLAW), coin::cmh_test p per analyte.
+library(tidyverse)
+library(tplyr2)
+library(clinify)
+
 source("R/setup.R")
 source("R/helpers.R")
 suppressPackageStartupMessages(library(coin))

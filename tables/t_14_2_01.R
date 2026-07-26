@@ -2,6 +2,10 @@
 # Table 14-2.01: Summary of Demographic and Baseline Characteristics   (Population: Intent-to-Treat)
 # Produces: outputs/14-2.01.docx
 # Source: ADSL (ITTFL == "Y"); tplyr2 group_desc/group_count with ANOVA and chi-square p-values.
+library(tidyverse)
+library(tplyr2)
+library(clinify)
+
 source("R/setup.R")
 source("R/helpers.R")
 
