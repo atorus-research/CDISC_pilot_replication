@@ -778,21 +778,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-69"><a href="#cb1-69" aria-hidden="true" tabindex="-1"></a>  flextable<span class="sc">::</span><span class="fu">width</span>(<span class="at">j =</span> <span class="fu">c</span>(<span class="st">"res1"</span>, <span class="st">"res4"</span>), <span class="at">width =</span> <span class="fl">0.9</span>) <span class="sc">|&gt;</span></span>
 <span id="cb1-70"><a href="#cb1-70" aria-hidden="true" tabindex="-1"></a>  flextable<span class="sc">::</span><span class="fu">width</span>(<span class="at">j =</span> <span class="fu">c</span>(<span class="st">"res2"</span>, <span class="st">"res3"</span>, <span class="st">"res5"</span>, <span class="st">"res6"</span>), <span class="at">width =</span> <span class="fl">0.99</span>) <span class="sc">|&gt;</span></span>
 <span id="cb1-71"><a href="#cb1-71" aria-hidden="true" tabindex="-1"></a>  flextable<span class="sc">::</span><span class="fu">set_table_properties</span>(<span class="at">align =</span> <span class="st">"center"</span>)</span>
-<span id="cb1-72"><a href="#cb1-72" aria-hidden="true" tabindex="-1"></a><span class="co"># header_leading compacts this table's multi-line arm labels; clinify applies it after</span></span>
-<span id="cb1-73"><a href="#cb1-73" aria-hidden="true" tabindex="-1"></a><span class="co"># the option styler, so it survives the house line_spacing(space = 1, part = "all").</span></span>
-<span id="cb1-74"><a href="#cb1-74" aria-hidden="true" tabindex="-1"></a>ct <span class="ot">&lt;-</span> <span class="fu">add_titles_footnotes</span>(ct, TABLE, <span class="at">source_path =</span> SOURCE, <span class="at">date =</span> FIDELITY_DATE,</span>
-<span id="cb1-75"><a href="#cb1-75" aria-hidden="true" tabindex="-1"></a>                           <span class="at">header_leading =</span> <span class="fl">0.75</span>)</span>
-<span id="cb1-76"><a href="#cb1-76" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-77"><a href="#cb1-77" aria-hidden="true" tabindex="-1"></a><span class="co">#' Apply the house table default and compact the header</span></span>
-<span id="cb1-78"><a href="#cb1-78" aria-hidden="true" tabindex="-1"></a><span class="co">#' @param x A flextable to style.</span></span>
-<span id="cb1-79"><a href="#cb1-79" aria-hidden="true" tabindex="-1"></a><span class="co">#' @param ... Unused; matches the `clinify_table_default` signature.</span></span>
-<span id="cb1-80"><a href="#cb1-80" aria-hidden="true" tabindex="-1"></a><span class="co">#' @return The styled flextable.</span></span>
-<span id="cb1-81"><a href="#cb1-81" aria-hidden="true" tabindex="-1"></a><span class="co">#' @details The spanner underline is drawn by `clin_spanner_rule()` in the table</span></span>
-<span id="cb1-82"><a href="#cb1-82" aria-hidden="true" tabindex="-1"></a><span class="co">#'   pipeline, which clinify applies after this styler so it survives border_remove().</span></span>
-<span id="cb1-83"><a href="#cb1-83" aria-hidden="true" tabindex="-1"></a>spanned_default <span class="ot">&lt;-</span> <span class="cf">function</span>(x, ...) <span class="fu">cdisc_table_default</span>(x)</span>
-<span id="cb1-84"><a href="#cb1-84" aria-hidden="true" tabindex="-1"></a>old <span class="ot">&lt;-</span> <span class="fu">options</span>(<span class="at">clinify_table_default =</span> spanned_default)</span>
-<span id="cb1-85"><a href="#cb1-85" aria-hidden="true" tabindex="-1"></a><span class="fu">write_clindoc</span>(ct, <span class="fu">file.path</span>(OUTPUT_DIR, <span class="fu">paste0</span>(TABLE, <span class="st">".docx"</span>)))</span>
-<span id="cb1-86"><a href="#cb1-86" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(old)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-72"><a href="#cb1-72" aria-hidden="true" tabindex="-1"></a>ct <span class="ot">&lt;-</span> <span class="fu">add_titles_footnotes</span>(ct, TABLE, <span class="at">source_path =</span> SOURCE, <span class="at">date =</span> FIDELITY_DATE) <span class="sc">|&gt;</span></span>
+<span id="cb1-73"><a href="#cb1-73" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Compact this table's multi-line arm labels. Refines the house pitch set above</span></span>
+<span id="cb1-74"><a href="#cb1-74" aria-hidden="true" tabindex="-1"></a>  <span class="co"># (clinify folds a later call in, keeping body/title/footnote), and is applied after</span></span>
+<span id="cb1-75"><a href="#cb1-75" aria-hidden="true" tabindex="-1"></a>  <span class="co"># the option styler, so it survives the house line_spacing(space = 1, part = "all").</span></span>
+<span id="cb1-76"><a href="#cb1-76" aria-hidden="true" tabindex="-1"></a>  clinify<span class="sc">::</span><span class="fu">clin_row_height</span>(<span class="at">header_leading =</span> <span class="fl">0.75</span>)</span>
+<span id="cb1-77"><a href="#cb1-77" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-78"><a href="#cb1-78" aria-hidden="true" tabindex="-1"></a><span class="co">#' Apply the house table default and compact the header</span></span>
+<span id="cb1-79"><a href="#cb1-79" aria-hidden="true" tabindex="-1"></a><span class="co">#' @param x A flextable to style.</span></span>
+<span id="cb1-80"><a href="#cb1-80" aria-hidden="true" tabindex="-1"></a><span class="co">#' @param ... Unused; matches the `clinify_table_default` signature.</span></span>
+<span id="cb1-81"><a href="#cb1-81" aria-hidden="true" tabindex="-1"></a><span class="co">#' @return The styled flextable.</span></span>
+<span id="cb1-82"><a href="#cb1-82" aria-hidden="true" tabindex="-1"></a><span class="co">#' @details The spanner underline is drawn by `clin_spanner_rule()` in the table</span></span>
+<span id="cb1-83"><a href="#cb1-83" aria-hidden="true" tabindex="-1"></a><span class="co">#'   pipeline, which clinify applies after this styler so it survives border_remove().</span></span>
+<span id="cb1-84"><a href="#cb1-84" aria-hidden="true" tabindex="-1"></a>spanned_default <span class="ot">&lt;-</span> <span class="cf">function</span>(x, ...) <span class="fu">cdisc_table_default</span>(x)</span>
+<span id="cb1-85"><a href="#cb1-85" aria-hidden="true" tabindex="-1"></a>old <span class="ot">&lt;-</span> <span class="fu">options</span>(<span class="at">clinify_table_default =</span> spanned_default)</span>
+<span id="cb1-86"><a href="#cb1-86" aria-hidden="true" tabindex="-1"></a><span class="fu">write_clindoc</span>(ct, <span class="fu">file.path</span>(OUTPUT_DIR, <span class="fu">paste0</span>(TABLE, <span class="st">".docx"</span>)))</span>
+<span id="cb1-87"><a href="#cb1-87" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(old)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 
 
 
