@@ -69,7 +69,10 @@ ct <- clintable(final, use_labels = FALSE) |>
   flextable::width(j = c("res1", "res4"), width = 0.9) |>
   flextable::width(j = c("res2", "res3", "res5", "res6"), width = 0.99) |>
   flextable::set_table_properties(align = "center")
-ct <- add_titles_footnotes(ct, TABLE, source_path = SOURCE, date = FIDELITY_DATE)
+# header_leading compacts this table's multi-line arm labels; clinify applies it after
+# the option styler, so it survives the house line_spacing(space = 1, part = "all").
+ct <- add_titles_footnotes(ct, TABLE, source_path = SOURCE, date = FIDELITY_DATE,
+                           header_leading = 0.75)
 
 #' Apply the house table default and compact the header
 #' @param x A flextable to style.
@@ -77,11 +80,7 @@ ct <- add_titles_footnotes(ct, TABLE, source_path = SOURCE, date = FIDELITY_DATE
 #' @return The styled flextable.
 #' @details The spanner underline is drawn by `clin_spanner_rule()` in the table
 #'   pipeline, which clinify applies after this styler so it survives border_remove().
-spanned_default <- function(x, ...) {
-  x <- cdisc_table_default(x)
-  # Compact the multi-line arm labels in the header.
-  flextable::line_spacing(x, space = 0.75, part = "header")
-}
+spanned_default <- function(x, ...) cdisc_table_default(x)
 old <- options(clinify_table_default = spanned_default)
 write_clindoc(ct, file.path(OUTPUT_DIR, paste0(TABLE, ".docx")))
 options(old)

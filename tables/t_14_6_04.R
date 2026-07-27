@@ -61,23 +61,19 @@ b <- as_display(tplyr_build(tplyr_spec(cols = "TRTP",
          settings = layer_settings(
            shift_denom = "column",
            format_strings = list(n_counts = f_str("xx(xxx%)", "n", "pct")),
-           order_count_method = "byfactor", zero_count_display = "count_only")))), comb))
+           order_count_method = "byfactor", zero_count_display = "count_only",
+           # the layer's own per-baseline-group denominator, as the reference's 2-char "n" row
+           denom_row = TRUE, denom_row_label = "n",
+           denom_row_format = f_str("xx", "n"))))), comb))
 rl <- grep("^rowlabel", names(b), value = TRUE)
 rc <- grep("^res", names(b), value = TRUE)   # PARAM,VISIT,ANRIND | 6
 shift <- tibble(PARAM = b[[rl[1]]], VISIT = b[[rl[2]]], SHIFT = b[[rl[3]]])
 for (i in seq_along(rc)) shift[[COLS[i]]] <- b[[rc[i]]]
 shift$SHIFT <- recode(shift$SHIFT, "N" = "Normal", "H" = "High")
 
-# n rows: baseline-group N per (PARAM, VISIT, TRTP, BNRIND) column.
-# (tplyr2 denom_row was tried here but emits NA for absent baseline groups and a
-#  count-column-width integer; the reference needs zero-filled, %2d-wide values.)
-nrows <- comb |> count(PARAM, VISIT, TRTP, BNRIND, .drop = FALSE) |>
-  mutate(col = paste(TRTP, BNRIND)) |>
-  select(PARAM, VISIT, col, n) |> pivot_wider(names_from = col, values_from = n, values_fill = 0)
-nrows[COLS] <- lapply(nrows[COLS], function(x) sprintf("%2d", x))
-nrows$SHIFT <- "n"
-nrows$PARAM <- as.character(nrows$PARAM)
-nrows$VISIT <- as.character(nrows$VISIT)
+# n rows: emitted by the shift layer itself (denom_row), so the displayed denominator is
+# the one the percentages were computed against.
+nrows <- shift |> filter(SHIFT == "n")
 
 # assemble per PARAM x VISIT: n, Normal, High (drop High if all zero)
 

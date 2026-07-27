@@ -48,6 +48,9 @@ analyte_rows <- function(pc) {
             shift_denom = "column",
             format_strings = list(n_counts = f_str("xx(xxx%)", "n", "pct")),
             order_count_method = "byfactor", zero_count_display = "count_only",
+            # the layer's own per-baseline-group denominator, as the reference's 2-char "n" row
+            denom_row = TRUE, denom_row_label = "n",
+            denom_row_format = f_str("xx", "n"),
             assoc_test = assoc_test(
               fn = function(.data) {
                 if (all(.data$AVAL == "0")) return("")
@@ -64,16 +67,12 @@ analyte_rows <- function(pc) {
               format = f_str("x.xxxx", "p")))))), d))
   rc <- grep("^res", names(b), value = TRUE)
   rl <- grep("^rowlabel", names(b), value = TRUE)
-  sh <- tibble(SHIFT = as.character(b[[rl[1]]]))
-  for (i in seq_along(rc)) sh[[COLS[i]]] <- as.character(b[[rc[i]]])
-  # denom_row = TRUE was rejected: it renders empty baseline groups as NA (not "0")
-  # and pads counts to the count-cell width, so the n-row is built manually instead.
-  nr <- d |> count(TRTP, BASE, .drop = FALSE) |>
-    mutate(col = paste(TRTP, recode(as.character(BASE), "0" = "N", "1" = "H"))) |>
-    select(col, n) |> pivot_wider(names_from = col, values_from = n, values_fill = 0)
-  nr[COLS] <- lapply(nr[COLS], function(x) sprintf("%2d", x))
-  n_row <- tibble(SHIFT = "n")
-  for (c in COLS) n_row[[c]] <- nr[[c]]
+  all_rows <- tibble(SHIFT = as.character(b[[rl[1]]]))
+  for (i in seq_along(rc)) all_rows[[COLS[i]]] <- as.character(b[[rc[i]]])
+  # The layer emits its own per-baseline-group denominator as the leading "n" row
+  # (denom_row), so the displayed denominator is the one the percentages used.
+  n_row <- all_rows |> filter(SHIFT == "n")
+  sh    <- all_rows |> filter(SHIFT != "n")
   n_row$PVAL <- dplyr::first(as.character(b$pval1))
   sh$PVAL <- ""
   list(n = n_row, shifts = sh)

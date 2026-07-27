@@ -69,6 +69,9 @@ b <- tplyr_build(tplyr_spec(cols = "TRTP",
            shift_denom = "column",
            format_strings = list(n_counts = f_str("xx(xxx%)", "n", "pct")),
            order_count_method = "byfactor", zero_count_display = "count_only",
+           # the layer's own per-baseline-group denominator, as the reference's 2-char "n" row
+           denom_row = TRUE, denom_row_label = "n",
+           denom_row_format = f_str("xx", "n"),
            assoc_test = assoc_test(
              fn = function(.data) {
                if (all(.data$ANRIND == "N")) return("")
@@ -98,13 +101,9 @@ pv_lookup <- tibble(PARAM = as.character(disp[[rl[1]]]),
   group_by(PARAM) |> summarize(PVAL = dplyr::first(PVAL), .groups = "drop")
 pv_lookup <- setNames(pv_lookup$PVAL, pv_lookup$PARAM)
 
-# n rows: baseline-group N per (PARAM, TRTP, BNRIND) column
-nrows <- comb |> count(PARAM, TRTP, BNRIND, .drop = FALSE) |>
-  mutate(col = paste(TRTP, BNRIND)) |>
-  select(PARAM, col, n) |> pivot_wider(names_from = col, values_from = n, values_fill = 0)
-nrows[COLS] <- lapply(nrows[COLS], function(x) sprintf("%2d", x))
-nrows$SHIFT <- "n"
-nrows$PARAM <- as.character(nrows$PARAM)
+# n rows: emitted by the shift layer itself (denom_row), so the displayed denominator is
+# the one the percentages were computed against.
+nrows <- shift |> filter(SHIFT == "n")
 
 # assemble per PARAM: n (+p), Normal, High (drop High if all six cells zero)
 
