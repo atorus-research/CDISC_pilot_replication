@@ -136,15 +136,22 @@ BYTE-IDENTICALLY (fanned-out verify-and-revert; independent full-30 sweep afterw
 - **14-7.04 CM rewrite** — now native `group_count(c("CMCLAS","CMDECOD"), distinct_by=, pop_data=, total_row=)`.
   **14-7.04 now uses tplyr2 → only 3 tables remain non-tplyr2** (14-1.03 crosstab, 14-3.11 MMRM, 14-3.10 wide).
 
-**Kept manual** (native feature exists but can't reproduce the pilot's exact output byte-identically)
-- **assoc_test** for 14-5.01 (AE): needs TWO p-columns (Pbo-vs-Low, Pbo-vs-High) on EVERY SOC/PT row + ADSL
-  population denominators (absent from the AE subset) + custom `*`/`>.99`/pad formatting; assoc_test emits one
-  column on each by-group's first row only. Kept `fisher_ae`.
-- **assoc_test** for the CMH tables 14-6.05/.06 and 14-3.13 — placement/layout not byte-matchable; kept the
-  `coin::cmh_test` pipeline.
-- **denom_row (#35)** for 14-6.04/.05/.06 — the emitted denominator row didn't match the pilot's exact
-  format/placement; kept the hand-rolled n-row.
-- **apply_formats()** — left `num_fmt` (31 callers, verified); a lateral swap with no boilerplate win.
+**Later adoptions (2026-07-27) — after further upstream fixes**
+- **AE tables 14-5.01/.02 → native pairwise assoc_test; `fisher_ae` RETIRED.** The blockers I flagged were
+  fixed upstream in sequence: pairwise mode + denominator access (#40/PR#43), character-return display for the
+  `*`/`>.99`/blank formatting (#47/PR#48), nested-count-layer support (#49/PR#50), and an empty/sparse-reference
+  patch (PR#50 follow-up). `R/ae.R` now runs `group_count(..., assoc_test = assoc_test(fn = ae_p, reference,
+  comparisons, total_row = TRUE))`; `ae_p` supplies the display verbatim. Removed `fisher_ae`, its manual 2x2,
+  and the per-p `N` plumbing. Verified byte-identical (14-5.01 16pp, 14-5.02 sparse serious AEs) + full 30-sweep.
+- **num_fmt → apply_formats (#41/PR#42):** once `na=`/`width=`/`pad=` shipped, `num_fmt()` became a thin wrapper
+  over `apply_formats()` (byte-identical, 88/88 across call-site shapes); all 31 call sites unchanged.
+- tplyr2 repinned to `@main` (post-#50) + `renv::snapshot` each round.
+
+**Still kept manual** (native feature exists but not byte-matchable for these specific shells)
+- **assoc_test** for the CMH tables 14-6.05/.06 and 14-3.13 — `coin::cmh_test` placement/layout not byte-matchable
+  (an omnibus-per-`by` CMH column, not the pairwise Fisher shape assoc_test now covers).
+- **denom_row (#35)** for 14-6.04/.05/.06 — emitted denominator row didn't match the pilot's exact format.
+- `fish_p_str`/`chi_p_str`/`aov_p_str` in R/helpers.R — single-p tests for 14-1.02/14-2.01 (not count/shift layers).
 
 ## Post-cleanup redundancy review + upstream issues filed (2026-07-25)
 The final code review surfaced recurring hand-written boilerplate. Each candidate was VERIFIED against the
