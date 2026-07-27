@@ -28,6 +28,9 @@ def main():
                     help="pagination-agnostic body pixel comparison (repaginated tables)")
     ap.add_argument("--content", action="store_true",
                     help="pagination- and pitch-agnostic body CONTENT comparison (values/rows/order)")
+    ap.add_argument("--header", action="store_true",
+                    help="header block line-structure comparison (catches a changed header wrap, "
+                         "which the pixel and text-set gates cannot see)")
     args = ap.parse_args()
 
     ref = Path(args.ref) if args.ref else ORIG_WORKTREE / "outputs" / f"{args.table_id}.rtf"
@@ -44,6 +47,17 @@ def main():
     F.to_pdf(cand, cand_pdf)
 
     import json
+    if args.header:
+        r = F.header_compare(ref_pdf, cand_pdf, outdir)
+        print(f"table     : {args.table_id}  (header block line structure)")
+        print(f"header lines: ref={r['ref_lines']}  cand={r['cand_lines']}")
+        for i, ref_l, cand_l in r["diffs"]:
+            print(f"  line {i + 1}:\n      REF : {ref_l[:90]}\n      CAND: {cand_l[:90]}")
+        for ln in r["only_ref"]:  print(f"  REF only : {ln[:90]}")
+        for ln in r["only_cand"]: print(f"  CAND only: {ln[:90]}")
+        print(f"\n{'PASS - header wraps identical' if r['pass'] else 'FAIL / header wrap differs'}")
+        sys.exit(0 if r["pass"] else 1)
+
     if args.content:
         r = F.content_compare(ref_pdf, cand_pdf, outdir)
         print(f"table     : {args.table_id}  (content lines / pagination-agnostic)")

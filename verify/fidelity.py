@@ -191,6 +191,79 @@ def _page_lines(pdf, page):
         out.append((y, ymax, " ".join(t for _, _, t in sorted(v, key=lambda z: z[0]))))
     return out
 
+def header_rule_pt(pdf, page, outdir, tag="hd"):
+    """y (in points) of the rule that separates a page's header block from the body.
+
+    The threshold is a fraction of the TABLE's ink width, not the page's: these tables
+    are about 9in on an 11in landscape page, so a rule spanning the full table only
+    covers ~82% of the page and a page-relative 0.9 cutoff never sees it (falling back
+    to a fixed fraction of the page height, which lands mid-header).
+    """
+    scale = DPI / 72.0
+    png = rasterize(pdf, page, outdir / f"{tag}{page:04d}")
+    im = np.asarray(Image.open(png).convert("L"))
+    h, w = im.shape
+    dark = im < 128
+    ink = dark.sum(1)
+    cols = np.where(dark.any(0))[0]              # horizontal extent of the table's ink
+    span = (cols[-1] - cols[0] + 1) if len(cols) else w
+    rules = [y for y in range(int(h * 0.6)) if ink[y] > 0.9 * span]
+    return (max(rules) / scale) if rules else (h * 0.18 / scale)
+
+
+def page_header_lines(pdf, page, cut_pt):
+    """Ordered text lines of a page's header block: everything above `cut_pt`.
+
+    Used to compare where header text WRAPS. Neither of the other gates can see a
+    wrap change: the pixel diff moves by a fraction of a percent (the header is a
+    small share of the page) and `page_text_set` strips all whitespace, so
+    "Xanomeline / Low Dose" and "Xanomeline Low / Dose" are identical to it.
+
+    The caller passes a cut shared by both documents — see `header_compare()`.
+    """
+    return [re.sub(r"\s+", " ", txt).strip()
+            for y, _, txt in _page_lines(pdf, page) if y < cut_pt and txt.strip()]
+
+
+def header_compare(ref_pdf, cand_pdf, outdir, page=1):
+    """Compare the header block's line structure (titles + column headers) verbatim.
+
+    Catches a changed header wrap, which the pixel and text-set gates miss. Lines
+    are whitespace-normalized (cell padding is not the concern) but their ORDER and
+    the split points between them must match exactly.
+    """
+    # Cut both documents at the SAME height: a table with an intermediate rule (e.g. a
+    # spanner underline) can have its header/body rule detected at slightly different
+    # heights in the RTF vs the DOCX render, which would otherwise include one extra
+    # header row on one side and read as a difference that isn't one.
+    cut = min(header_rule_pt(ref_pdf, page, outdir, "hdr"),
+              header_rule_pt(cand_pdf, page, outdir, "hdc"))
+    ref = page_header_lines(ref_pdf, page, cut)
+    cand = page_header_lines(cand_pdf, page, cut)
+
+    def norm(ls):
+        """Drop the split-segment chrome lines and the dynamic timestamp.
+
+        A `Protocol: ... Page n of m` (or `Source: ... <date>`) line has its left and
+        right halves far apart on the real page, and pdftotext glues them with variable
+        spacing — an extraction artifact, not a wrap difference (`content_compare`
+        skips these for the same reason). They are identical chrome by construction.
+        """
+        out = []
+        for t in ls:
+            if t.startswith("Protocol:") or t.startswith("Source:"):
+                continue
+            if re.match(r"^\d{1,2}:\d{2}\s+\w+,\s+\w+\s+\d+,\s+\d{4}$", t):
+                continue
+            out.append(re.sub(r"Page \d+ of \d+", "Page N of M", t))
+        return out
+    ref, cand = norm(ref), norm(cand)
+    diffs = [(i, r, c) for i, (r, c) in enumerate(zip(ref, cand)) if r != c]
+    return {"mode": "header-lines", "ref_lines": len(ref), "cand_lines": len(cand),
+            "pass": ref == cand, "line_count_match": len(ref) == len(cand),
+            "diffs": diffs[:15], "only_ref": ref[len(cand):], "only_cand": cand[len(ref):]}
+
+
 def body_strip(pdf, outdir, dpi=DPI):
     """Concatenate the body band of every page into one grayscale image, cropped
     tightly to the first/last body text line so per-page white space (which
