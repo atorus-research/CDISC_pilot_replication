@@ -146,4 +146,56 @@ f_str percent can't produce the reference's UNPADDED integer percent "7 (8%)"). 
 within class by descending Placebo count then alphabetical (legacy radix order). Body valign="top"
 so arm counts sit on the first line of the wrapped "at least one" label (same idiom as 14-7.x).
 
+## The reference RTFs render their column headers in a PROPORTIONAL font (affects every header-wrap comparison)
+
+Measured character pitch, `14-6.04` page 1, from `pdftotext -bbox` glyph widths:
+
+| word | where | reference | ours |
+|---|---|---|---|
+| `Shift` | header | **4.104** | 6.000 |
+| `Baseline` | header | **4.438** | 6.000 |
+| `Normal` | header | **5.452** | 6.000 |
+| `Week` | header | **5.960** | 6.000 |
+| `CHEMISTRY` | body | 6.000 | 6.000 |
+| `ALANINE` | body | 6.000 | 6.000 |
+
+The reference's header pitch **varies per word**, which only a proportional font does;
+its body is a fixed 6.000. The RTF fonttbl is `{\f0 Times}{\f1 Courier New}` and the
+header cell paragraphs are `\pard\intbl\qc{\fs20 \b {Shift to}` with no `\f1`, so they
+fall back to `\f0` Times while the body renders Courier. Almost certainly a
+pharmaRTF/huxtable quirk rather than a decision - the legacy output is internally
+inconsistent with itself. We render Courier New throughout, consistent with the legacy
+*body* and with every other table in the suite.
+
+Consequence, and the reason this is worth recording on its own: **header text in the
+reference is 10-30% narrower than the same string in our output.** Any "their header
+fits on one line and ours wraps" observation has to account for this before it can be
+attributed to anything else. The reference's header cells also carry `\clNoWrap`, so
+the legacy would have overflowed rather than wrapped even where text did not fit.
+
+### 14-6.04 - `"Shift to"` wraps to two lines  [unavoidable consequence of the above]
+The SHIFT column is **0.588in in both** - the legacy `\cellx` values are 3508/4234/5081/
+then 6×0.840in, which the pilot transcribes exactly - so this is not a width transcription
+error. `"Shift to"` is 8 characters: ~33-38pt in the reference's proportional header font,
+which fits the 38.34pt of usable cell width, but 48pt in Courier New 10, which does not.
+
+Given faithful column widths and a monospace header, the wrap cannot be avoided.
+**Deliberately NOT "fixed" by widening the column**, which would trade a faithful
+geometry for a cosmetic line break and shift all six arm columns right. Everything else
+about this header now matches: the six `Baseline` sub-labels are present and in their own
+columns (see below).
+
+Note also that the legacy header was never levelled the way ours is - `outputs/14-6.04.rtf`
+is a single header row of whole strings (`{Week}`, `{Shift to}`, `{Normal at Baseline}`)
+stacked purely by natural wrapping. We express it as explicit levels, which is
+deterministic rather than dependent on the renderer's font metrics, and is what makes the
+`merge = "spanners"` argument necessary.
+
+## Reference RTFs do not share a y origin with our DOCX (harness-relevant, not a divergence)
+The references start their page content at y=**36, 54 or 72** points depending on which
+legacy program wrote them; our DOCX is always 36. The pixel gate absorbs this through
+`register()`, but any check that compares absolute y between the two documents will be
+wrong by up to 36pt. `header_compare()` did exactly that and produced 7 false failures
+before it was changed to cut each document at its own header rule.
+
 ## COMPLETE: all 30/30 tables built + verified (2026-07-24)

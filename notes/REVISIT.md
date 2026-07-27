@@ -238,6 +238,54 @@ divergence (filed separately as #120); citing that on #117 was the wrong evidenc
   (14-1.02, 14-5.01/.02, 14-6.02/.04/.05, 14-7.01/.02/.04). Filed at the maintainer's invitation on #118.
   Cosmetic and pre-existing; may end up documented as a deliberate divergence.
 
+### clinify #120 RESOLVED — and 7 of the 9 were OUR harness lying (2026-07-27)
+The maintainer's investigation found **no clinify defect**. Only outcome upstream was a docs change
+(PR #122: the `merge` argument now says what merging a row of repeated labels actually looks like).
+Everything else was on our side. Header gate: **9 failing → 1**, and the one remaining is documented.
+
+**`header_compare()` had three defects — all fixed in `verify/fidelity.py`:**
+1. **Shared absolute cut.** `cut = min(header_rule_pt(ref), header_rule_pt(cand))` cut both documents at
+   one absolute y. The references start content at y=36/54/**72** depending on the legacy program; our
+   DOCX is always 36. So one cut sliced the two at different *depths*. For 14-7.01 it landed **above the
+   reference's entire column-header block** → ref 3 lines vs cand 6, a pure artifact. Now each document is
+   cut at its own rule. This alone fixed 7 of the 9. See divergences.md on the y-origin.
+2. **`zip` + tail slices, not a diff.** `only_ref = ref[len(cand):]` / `only_cand = cand[len(ref):]` meant
+   one extra line near the top shifted every later pair, so identical lines reported as changed and lines
+   present in BOTH were named "only in CAND". **This is what hid the real 14-6.04 defect** behind a wrap
+   complaint. Now uses `difflib.SequenceMatcher`.
+3. **Silent fallback in `header_rule_pt`.** Thresholded on summed ink per row against *all* page ink — so
+   the edge-to-edge `Protocol: … Page n of m` band set the scale and the table's own rule (~82% of page
+   width) never qualified, falling through to `h * 0.18`, a fixed fraction of page height landing
+   mid-header. 14-7.04's candidate returned exactly 110.16 = that fallback, with nothing to say so. Now
+   detects a rule as a long **contiguous** run (text never is: the longest unbroken run in a line of
+   Courier is one glyph) and **raises `NoHeaderRule`** rather than guessing. Contiguity also subsumes the
+   spanner-underline worry that motivated defect 1 in the first place.
+
+**Two real differences, both our table code:**
+- **14-1.02** `t_14_1_02.R` had `p = "p-value\n[1]"`; legacy `programs/t-14-1-02.R:124` has
+  `"p-value [1]"` with a **space**, and the reference RTF cell carries no `\line` while its neighbours do.
+  One-character fix → header gate PASSES, pixel 2.022%. The issue's premise was inverted: the reference
+  cell holds ONE line and ours held two, not the same lines distributed differently.
+- **14-6.04** `t_14_6_04.R` passed no `merge`, so the default merged the bottom header row's six identical
+  `"Baseline"` cells into one `gridSpan=6` — **five of the six labels were absent from the output**, a
+  worse defect than the wrap that was reported, and invisible because of harness defect 2. Added
+  `merge = "spanners"` (what `t_14_6_05.R` already did, which is why .05 passed). Six labels restored;
+  content still at its documented `difflines=9` baseline (4 of those are the pre-existing
+  `ERY. MEAN CORPUSCULAR` label wrap).
+- **14-6.04's `"Shift to"` wrap remains, deliberately.** The SHIFT column is 0.588in in *both* — legacy
+  `\cellx` = 3508/4234/5081 — so no transcription error. The reference fits it because **its header
+  renders in a proportional font**: measured pitch varies per word (`Shift` 4.104, `Baseline` 4.438,
+  `Normal` 5.452) while its body is a fixed 6.000 and ours is 6.000 throughout. 8 chars is ~33-38pt in
+  Times vs 48pt in Courier, against 38.34pt of usable width. Widening the column would trade faithful
+  geometry for a cosmetic line break, so it is recorded in divergences.md instead. **This affects every
+  header-wrap comparison** — reference header text is 10-30% narrower than ours.
+
+**The issue text also mischaracterised 14-7.01**: it gives the header as `"Planned\nRelative\nTime"`, but
+`t_14_7_01.R:80` is `PRT = "Planned Relative Time"`, a plain string, and the RTF cell is
+`{Planned Relative Time}`. Both wrap naturally to three lines and match exactly. `valign = "bottom"` is
+not implicated in any of the nine — it correctly pins each cell's last line to the row's bottom baseline
+in both renderers.
+
 ## Open upstream (as of 2026-07-27)
 - **clinify #112** header wrapping to rendered column width (the wrapping half of #15, maintainer-invited).
 - **clinify #113** `clin_header_pad()` overwrites per-row `flextable::padding(i=)` instead of composing.

@@ -136,7 +136,13 @@ ct <- clintable(final, use_labels = FALSE, coerce_character = TRUE) |>
     `Xanomeline Low Dose N`  = c(arm_hdr("Xan. Low", "Xanomeline Low Dose"), "Normal at", "Baseline"),
     `Xanomeline Low Dose H`  = c(arm_hdr("Xan. Low", "Xanomeline Low Dose"), "High at", "Baseline"),
     `Xanomeline High Dose N` = c(arm_hdr("Xan. High", "Xanomeline High Dose"), "Normal at", "Baseline"),
-    `Xanomeline High Dose H` = c(arm_hdr("Xan. High", "Xanomeline High Dose"), "High at", "Baseline")) |>
+    `Xanomeline High Dose H` = c(arm_hdr("Xan. High", "Xanomeline High Dose"), "High at", "Baseline"),
+    # merge = "spanners" merges every header row except the bottom one. The bottom row
+    # here is six columns all labelled "Baseline", and the default merges identical
+    # adjacent cells on every row - which collapsed all six into one cell rendering a
+    # single centred "Baseline", so five of the six labels were absent from the output.
+    # Same reason t_14_6_05.R passes this argument.
+    merge = "spanners") |>
   clin_spanner_rule() |>   # solid rule under each arm spanner (cols 4:5, 6:7, 8:9)
   flextable::valign(part = "header", valign = "bottom") |>
   flextable::align(part = "header", align = "center") |>

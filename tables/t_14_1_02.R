@@ -114,7 +114,12 @@ ct <- clintable(final, use_labels = FALSE, coerce_character = TRUE) |>
     res2 = arm_label("Xanomeline Low Dose",  Ns[["Xanomeline Low Dose"]]),
     res3 = arm_label("Xanomeline High Dose", Ns[["Xanomeline High Dose"]]),
     res4 = arm_label("Total", Ntot),
-    p    = "p-value\n[1]") |>
+    # One line, as the legacy program had it: `programs/t-14-1-02.R` builds this
+    # header as "p-value [1]" with a space, and the reference RTF cell carries no
+    # \line while its neighbours do. Splitting it made the cell two lines deep; with
+    # the header bottom-aligned that put "p-value" a line higher than the reference.
+    # 11 chars at 6pt is 66pt, inside the column's 73.76pt of usable width.
+    p    = "p-value [1]") |>
   flextable::valign(part = "header", valign = "bottom") |>
   flextable::align(part = "header", align = "center") |>
   flextable::align(j = "rowlbl", part = "header", align = "left") |>

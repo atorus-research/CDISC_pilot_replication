@@ -15,7 +15,7 @@ Requires: a running Gotenberg service (default http://localhost:3000),
 poppler CLIs (pdftoppm, pdftotext, pdfinfo), numpy, Pillow, pypdf. httpx if
 available else urllib fallback.
 """
-import re, sys, os, subprocess, tempfile, argparse, json, urllib.request
+import re, sys, os, subprocess, tempfile, argparse, json, difflib, urllib.request
 from pathlib import Path
 import numpy as np
 from PIL import Image
@@ -191,24 +191,72 @@ def _page_lines(pdf, page):
         out.append((y, ymax, " ".join(t for _, _, t in sorted(v, key=lambda z: z[0]))))
     return out
 
+class NoHeaderRule(RuntimeError):
+    """Raised when a page's header/body rule cannot be located.
+
+    Previously this condition fell back to `h * 0.18`, a fixed fraction of the page
+    height that lands somewhere in the middle of the header block. That produced a
+    plausible-looking number and a meaningless comparison, with nothing to say the
+    measurement had failed. Failing loudly is the point of this class.
+    """
+
+
+def _longest_dark_run(dark):
+    """Length of the longest contiguous run of dark pixels in each row, in pixels."""
+    h, w = dark.shape
+    padded = np.zeros((h, w + 2), dtype=bool)
+    padded[:, 1:-1] = dark
+    edges = np.diff(padded.astype(np.int8), axis=1)
+    out = np.zeros(h, dtype=int)
+    for y in range(h):
+        starts = np.flatnonzero(edges[y] == 1)
+        if len(starts):
+            ends = np.flatnonzero(edges[y] == -1)
+            out[y] = int((ends - starts).max())
+    return out
+
+
 def header_rule_pt(pdf, page, outdir, tag="hd"):
     """y (in points) of the rule that separates a page's header block from the body.
 
-    The threshold is a fraction of the TABLE's ink width, not the page's: these tables
-    are about 9in on an 11in landscape page, so a rule spanning the full table only
-    covers ~82% of the page and a page-relative 0.9 cutoff never sees it (falling back
-    to a fixed fraction of the page height, which lands mid-header).
+    A rule is a long CONTIGUOUS run of dark pixels. Measuring contiguity rather than
+    total ink per row is what makes this reliable here:
+
+    - The `Protocol: ... Page n of m` band spans the page edge to edge, so it carries
+      more ink in its row than the table's rule does. Thresholding on summed ink made
+      that band set the scale, and the table's own rule - only ~82% of the page, since
+      these tables are about 9in on an 11in landscape page - then failed to qualify and
+      fell through to the `h * 0.18` fallback. Contiguity ignores it: the longest
+      unbroken run in a line of Courier is one glyph.
+    - A spanner underline covers only its own columns, so it is a short run and cannot
+      be mistaken for the header/body rule. That is what the shared-cut hack in
+      `header_compare()` used to be guarding against.
+
+    Raises NoHeaderRule if no rule can be found, rather than returning a fallback.
     """
     scale = DPI / 72.0
     png = rasterize(pdf, page, outdir / f"{tag}{page:04d}")
     im = np.asarray(Image.open(png).convert("L"))
     h, w = im.shape
-    dark = im < 128
-    ink = dark.sum(1)
-    cols = np.where(dark.any(0))[0]              # horizontal extent of the table's ink
-    span = (cols[-1] - cols[0] + 1) if len(cols) else w
-    rules = [y for y in range(int(h * 0.6)) if ink[y] > 0.9 * span]
-    return (max(rules) / scale) if rules else (h * 0.18 / scale)
+    runs = _longest_dark_run(im < 128)
+    widest = int(runs.max()) if runs.size else 0
+
+    # Below this, the widest run on the page is glyph-sized and there is no rule to find
+    if widest < 0.4 * w:
+        raise NoHeaderRule(
+            f"{pdf.name} page {page}: no horizontal rule found - widest contiguous "
+            f"dark run is {widest}px of {w}px page width"
+        )
+
+    rules = np.flatnonzero(runs[: int(h * 0.6)] > 0.9 * widest)
+    if not len(rules):
+        raise NoHeaderRule(
+            f"{pdf.name} page {page}: no rule in the top 60% of the page "
+            f"(widest run on the page is {widest}px)"
+        )
+
+    # The lowest full-width rule above the body is the header/body separator
+    return int(rules.max()) / scale
 
 
 def page_header_lines(pdf, page, cut_pt):
@@ -219,7 +267,7 @@ def page_header_lines(pdf, page, cut_pt):
     small share of the page) and `page_text_set` strips all whitespace, so
     "Xanomeline / Low Dose" and "Xanomeline Low / Dose" are identical to it.
 
-    The caller passes a cut shared by both documents — see `header_compare()`.
+    The caller passes each document its OWN cut — see `header_compare()`.
     """
     return [re.sub(r"\s+", " ", txt).strip()
             for y, _, txt in _page_lines(pdf, page) if y < cut_pt and txt.strip()]
@@ -232,14 +280,25 @@ def header_compare(ref_pdf, cand_pdf, outdir, page=1):
     are whitespace-normalized (cell padding is not the concern) but their ORDER and
     the split points between them must match exactly.
     """
-    # Cut both documents at the SAME height: a table with an intermediate rule (e.g. a
-    # spanner underline) can have its header/body rule detected at slightly different
-    # heights in the RTF vs the DOCX render, which would otherwise include one extra
-    # header row on one side and read as a difference that isn't one.
-    cut = min(header_rule_pt(ref_pdf, page, outdir, "hdr"),
-              header_rule_pt(cand_pdf, page, outdir, "hdc"))
-    ref = page_header_lines(ref_pdf, page, cut)
-    cand = page_header_lines(cand_pdf, page, cut)
+    # Cut each document at ITS OWN header rule. These two documents do not share a y
+    # origin: the reference RTFs start their content at y=36, 54 or 72 depending on which
+    # legacy program wrote them, while the DOCX is always 36. One shared absolute cut
+    # therefore slices them at different DEPTHS into the table - for 14-7.01 the shared
+    # cut landed above the reference's entire column-header block, so the reference
+    # yielded 3 lines against the candidate's 6 and the gate reported a wrap difference
+    # that did not exist. The concern that motivated the shared cut - a spanner underline
+    # being mistaken for the header/body rule - is handled in `header_rule_pt()` by
+    # requiring a rule to be a full-width contiguous run.
+    try:
+        ref_cut = header_rule_pt(ref_pdf, page, outdir, "hdr")
+        cand_cut = header_rule_pt(cand_pdf, page, outdir, "hdc")
+    except NoHeaderRule as e:
+        return {"mode": "header-lines", "ref_lines": -1, "cand_lines": -1,
+                "pass": False, "line_count_match": False, "error": str(e),
+                "diffs": [], "only_ref": [], "only_cand": []}
+
+    ref = page_header_lines(ref_pdf, page, ref_cut)
+    cand = page_header_lines(cand_pdf, page, cand_cut)
 
     def norm(ls):
         """Drop the split-segment chrome lines and the dynamic timestamp.
@@ -258,10 +317,35 @@ def header_compare(ref_pdf, cand_pdf, outdir, page=1):
             out.append(re.sub(r"Page \d+ of \d+", "Page N of M", t))
         return out
     ref, cand = norm(ref), norm(cand)
-    diffs = [(i, r, c) for i, (r, c) in enumerate(zip(ref, cand)) if r != c]
+
+    # Align the two line lists before reporting. Zipping them index-by-index and taking
+    # `ref[len(cand):]` / `cand[len(ref):]` as the leftovers is not a diff: one extra
+    # line near the top shifts every later pair, so identical lines report as changed and
+    # lines present in BOTH documents get named as "only in" one of them. That is how the
+    # real defect in 14-6.04 - five header labels missing from the output - came to be
+    # reported as a wrap difference.
+    diffs, only_ref, only_cand = [], [], []
+    for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(
+        None, ref, cand, autojunk=False
+    ).get_opcodes():
+        if tag == "equal":
+            continue
+        if tag == "replace":
+            for k in range(max(i2 - i1, j2 - j1)):
+                diffs.append((
+                    i1 + k,
+                    ref[i1 + k] if i1 + k < i2 else "",
+                    cand[j1 + k] if j1 + k < j2 else "",
+                ))
+        elif tag == "delete":
+            only_ref.extend(ref[i1:i2])
+        elif tag == "insert":
+            only_cand.extend(cand[j1:j2])
+
     return {"mode": "header-lines", "ref_lines": len(ref), "cand_lines": len(cand),
             "pass": ref == cand, "line_count_match": len(ref) == len(cand),
-            "diffs": diffs[:15], "only_ref": ref[len(cand):], "only_cand": cand[len(ref):]}
+            "ref_cut_pt": round(ref_cut, 2), "cand_cut_pt": round(cand_cut, 2),
+            "diffs": diffs[:15], "only_ref": only_ref[:15], "only_cand": only_cand[:15]}
 
 
 def body_strip(pdf, outdir, dpi=DPI):
