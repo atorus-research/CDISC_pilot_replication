@@ -14,7 +14,6 @@ TOPLBL <- "Patients receiving at least one concomitant medication"
 
 cm   <- read_adam("cm")
 adsl <- read_adam("adsl") |> filter(ARM %in% ARMS)
-Nvec <- adsl |> count(ARM) |> deframe()                 # arm denominators (header N)
 armmap <- adsl |> distinct(USUBJID, ARM)                # CM carries no treatment var
 cm2   <- cm   |> inner_join(armmap, by = "USUBJID") |> mutate(ARM = factor(ARM, ARMS))
 adslp <- adsl |> mutate(ARM = factor(ARM, ARMS))
@@ -33,6 +32,11 @@ b <- tplyr_build(tplyr_spec(cols = "ARM",
            zero_count_display = "count_only",
            total_row = TRUE, total_row_label = TOPLBL)))),
      cm2, pop_data = adslp)
+# Header (N=) per arm from the build's own header N, so the displayed denominator is
+# provably the one used for the percentages (rather than a second count of ADSL).
+hn   <- tplyr_header_n(b)
+Nvec <- setNames(hn$.n, as.character(hn[[1]]))
+
 disp <- as_display(b)                                   # rowlabel1=CMCLAS, rowlabel2=CMDECOD, res1..3
 names(disp)[match(c("res1", "res2", "res3"), names(disp))] <- c("P", "L", "H")
 

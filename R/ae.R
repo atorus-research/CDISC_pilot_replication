@@ -15,9 +15,6 @@ build_ae_table <- function(table, source_path, serious = FALSE) {
   if (serious) adae <- adae |> filter(AESER == "Y")
   adae <- adae |> mutate(TRTA = factor(TRTA, levels = ARMS))
   adsl <- read_adam("adsl")
-  # Population denominators per arm, from the same ADSL/treatment variable the tplyr2
-  # pop_data uses (TRT01A), ordered Placebo / Low / High. Used for the header labels.
-  N <- unname(adsl |> count(TRT01A) |> deframe() |> (\(v) v[ARMS])())
 
   #' Fisher's exact p-value display for one arm-comparison 2x2 (reference vs comparison)
   #' @param m 2x2 matrix c(n_ref, n_cmp, N_ref - n_ref, N_cmp - n_cmp) supplied by assoc_test
@@ -49,6 +46,10 @@ build_ae_table <- function(table, source_path, serious = FALSE) {
           total_row = TRUE))))
   )
   b <- tplyr_build(spec, adae, pop_data = adsl)
+  # Header (N=) per arm, read from the build's own header N so the displayed denominator is
+  # provably the one tplyr2 used for the percentages (rather than a second count of ADSL).
+  hn <- tplyr_header_n(b)
+  N <- unname(setNames(hn$.n, as.character(hn[[1]]))[ARMS])
   bd <- as_display(b)   # display-ready frame: rowlabel*/res1..res6, row order preserved (ord/row_id dropped)
 
   #' Parse the leading integer count out of an "n (xx.x%)" cell
