@@ -801,22 +801,28 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-92"><a href="#cb1-92" aria-hidden="true" tabindex="-1"></a><span class="co">#' @param path Path to the titles spreadsheet.</span></span>
 <span id="cb1-93"><a href="#cb1-93" aria-hidden="true" tabindex="-1"></a><span class="co">#' @param source_path Source path passed to token substitution.</span></span>
 <span id="cb1-94"><a href="#cb1-94" aria-hidden="true" tabindex="-1"></a><span class="co">#' @param date Footer date; `NULL` uses the table's reference-RTF timestamp.</span></span>
-<span id="cb1-95"><a href="#cb1-95" aria-hidden="true" tabindex="-1"></a><span class="co">#' @return `x` with titles, footnotes and row height applied.</span></span>
-<span id="cb1-96"><a href="#cb1-96" aria-hidden="true" tabindex="-1"></a>add_titles_footnotes <span class="ot">&lt;-</span> <span class="cf">function</span>(x, table_number,</span>
-<span id="cb1-97"><a href="#cb1-97" aria-hidden="true" tabindex="-1"></a>                                 <span class="at">path =</span> <span class="st">"data/titles.xlsx"</span>,</span>
-<span id="cb1-98"><a href="#cb1-98" aria-hidden="true" tabindex="-1"></a>                                 <span class="at">source_path =</span> <span class="cn">NULL</span>, <span class="at">date =</span> <span class="cn">NULL</span>) {</span>
-<span id="cb1-99"><a href="#cb1-99" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">is.null</span>(date)) date <span class="ot">&lt;-</span> <span class="fu">ref_timestamp</span>(table_number)</span>
-<span id="cb1-100"><a href="#cb1-100" aria-hidden="true" tabindex="-1"></a>  tf <span class="ot">&lt;-</span> <span class="fu">read_titles</span>(table_number, path, source_path, date)</span>
-<span id="cb1-101"><a href="#cb1-101" aria-hidden="true" tabindex="-1"></a>  <span class="co"># One long-form data frame drives both verbs (clinify selects each surface's</span></span>
-<span id="cb1-102"><a href="#cb1-102" aria-hidden="true" tabindex="-1"></a>  <span class="co"># rows and leaves the other alone). House row pitch: body 15.35pt,</span></span>
-<span id="cb1-103"><a href="#cb1-103" aria-hidden="true" tabindex="-1"></a>  <span class="co"># titles/footnotes 11.4pt; "atleast" floors single lines compact and lets</span></span>
-<span id="cb1-104"><a href="#cb1-104" aria-hidden="true" tabindex="-1"></a>  <span class="co"># wrapped cells grow.</span></span>
-<span id="cb1-105"><a href="#cb1-105" aria-hidden="true" tabindex="-1"></a>  x <span class="sc">|&gt;</span></span>
-<span id="cb1-106"><a href="#cb1-106" aria-hidden="true" tabindex="-1"></a>    clinify<span class="sc">::</span><span class="fu">clin_add_titles</span>(tf) <span class="sc">|&gt;</span></span>
-<span id="cb1-107"><a href="#cb1-107" aria-hidden="true" tabindex="-1"></a>    clinify<span class="sc">::</span><span class="fu">clin_add_footnotes</span>(tf) <span class="sc">|&gt;</span></span>
-<span id="cb1-108"><a href="#cb1-108" aria-hidden="true" tabindex="-1"></a>    clinify<span class="sc">::</span><span class="fu">clin_row_height</span>(<span class="at">body =</span> <span class="fl">15.35</span>, <span class="at">title =</span> <span class="fl">11.4</span>, <span class="at">footnote =</span> <span class="fl">11.4</span>,</span>
-<span id="cb1-109"><a href="#cb1-109" aria-hidden="true" tabindex="-1"></a>                             <span class="at">rule =</span> <span class="st">"atleast"</span>, <span class="at">unit =</span> <span class="st">"pt"</span>)</span>
-<span id="cb1-110"><a href="#cb1-110" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-95"><a href="#cb1-95" aria-hidden="true" tabindex="-1"></a><span class="co">#' @param header_leading Optional header line-spacing multiple for tables with</span></span>
+<span id="cb1-96"><a href="#cb1-96" aria-hidden="true" tabindex="-1"></a><span class="co">#'   multi-line header cells (e.g. wrapped arm labels). Passed through to the single</span></span>
+<span id="cb1-97"><a href="#cb1-97" aria-hidden="true" tabindex="-1"></a><span class="co">#'   `clin_row_height()` call below, because a second call would replace it rather</span></span>
+<span id="cb1-98"><a href="#cb1-98" aria-hidden="true" tabindex="-1"></a><span class="co">#'   than add to it.</span></span>
+<span id="cb1-99"><a href="#cb1-99" aria-hidden="true" tabindex="-1"></a><span class="co">#' @return `x` with titles, footnotes and row height applied.</span></span>
+<span id="cb1-100"><a href="#cb1-100" aria-hidden="true" tabindex="-1"></a>add_titles_footnotes <span class="ot">&lt;-</span> <span class="cf">function</span>(x, table_number,</span>
+<span id="cb1-101"><a href="#cb1-101" aria-hidden="true" tabindex="-1"></a>                                 <span class="at">path =</span> <span class="st">"data/titles.xlsx"</span>,</span>
+<span id="cb1-102"><a href="#cb1-102" aria-hidden="true" tabindex="-1"></a>                                 <span class="at">source_path =</span> <span class="cn">NULL</span>, <span class="at">date =</span> <span class="cn">NULL</span>,</span>
+<span id="cb1-103"><a href="#cb1-103" aria-hidden="true" tabindex="-1"></a>                                 <span class="at">header_leading =</span> <span class="cn">NULL</span>) {</span>
+<span id="cb1-104"><a href="#cb1-104" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">is.null</span>(date)) date <span class="ot">&lt;-</span> <span class="fu">ref_timestamp</span>(table_number)</span>
+<span id="cb1-105"><a href="#cb1-105" aria-hidden="true" tabindex="-1"></a>  tf <span class="ot">&lt;-</span> <span class="fu">read_titles</span>(table_number, path, source_path, date)</span>
+<span id="cb1-106"><a href="#cb1-106" aria-hidden="true" tabindex="-1"></a>  <span class="co"># One long-form data frame drives both verbs (clinify selects each surface's</span></span>
+<span id="cb1-107"><a href="#cb1-107" aria-hidden="true" tabindex="-1"></a>  <span class="co"># rows and leaves the other alone). House row pitch: body 15.35pt,</span></span>
+<span id="cb1-108"><a href="#cb1-108" aria-hidden="true" tabindex="-1"></a>  <span class="co"># titles/footnotes 11.4pt; "atleast" floors single lines compact and lets</span></span>
+<span id="cb1-109"><a href="#cb1-109" aria-hidden="true" tabindex="-1"></a>  <span class="co"># wrapped cells grow.</span></span>
+<span id="cb1-110"><a href="#cb1-110" aria-hidden="true" tabindex="-1"></a>  x <span class="sc">|&gt;</span></span>
+<span id="cb1-111"><a href="#cb1-111" aria-hidden="true" tabindex="-1"></a>    clinify<span class="sc">::</span><span class="fu">clin_add_titles</span>(tf) <span class="sc">|&gt;</span></span>
+<span id="cb1-112"><a href="#cb1-112" aria-hidden="true" tabindex="-1"></a>    clinify<span class="sc">::</span><span class="fu">clin_add_footnotes</span>(tf) <span class="sc">|&gt;</span></span>
+<span id="cb1-113"><a href="#cb1-113" aria-hidden="true" tabindex="-1"></a>    clinify<span class="sc">::</span><span class="fu">clin_row_height</span>(<span class="at">body =</span> <span class="fl">15.35</span>, <span class="at">title =</span> <span class="fl">11.4</span>, <span class="at">footnote =</span> <span class="fl">11.4</span>,</span>
+<span id="cb1-114"><a href="#cb1-114" aria-hidden="true" tabindex="-1"></a>                             <span class="at">header_leading =</span> header_leading,</span>
+<span id="cb1-115"><a href="#cb1-115" aria-hidden="true" tabindex="-1"></a>                             <span class="at">rule =</span> <span class="st">"atleast"</span>, <span class="at">unit =</span> <span class="st">"pt"</span>)</span>
+<span id="cb1-116"><a href="#cb1-116" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 
 
 
