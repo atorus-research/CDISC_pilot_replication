@@ -147,11 +147,29 @@ BYTE-IDENTICALLY (fanned-out verify-and-revert; independent full-30 sweep afterw
   over `apply_formats()` (byte-identical, 88/88 across call-site shapes); all 31 call sites unchanged.
 - tplyr2 repinned to `@main` (post-#50) + `renv::snapshot` each round.
 
-**Still kept manual** (native feature exists but not byte-matchable for these specific shells)
-- **assoc_test** for the CMH tables 14-6.05/.06 and 14-3.13 — `coin::cmh_test` placement/layout not byte-matchable
-  (an omnibus-per-`by` CMH column, not the pairwise Fisher shape assoc_test now covers).
+**CMH / Fisher adoption round (2026-07-27)** — the omnibus `assoc_test` fn receives the by-group's FULL source
+subset (stratum columns included) and can return a preformatted string, so these became byte-identical:
+- **14-3.13** CIBIC+ CMH, **14-6.05** lab shift CMH, **14-6.06** Hy's-law shift CMH — `cmh_pval()` retired;
+  `coin::cmh_test(... | SITEGR1/BNRIND/BASE)` now runs inside `assoc_test`, guards and formats preserved.
+- **14-1.02** completion-status Fisher p — now from `assoc_test` on the COMP_STAT count layer.
+- `cmh_pval` and `fisher_ae` are gone; `assoc_test` supplies p-values in **7** programs. All 30 byte-identical.
+
+**Still kept manual**
+- **14-2.01** (demographics) — attempted and reverted. Two blockers: (a) its 9 CONTINUOUS `aov_p_str` p-values
+  can't move (`assoc_test` has no `group_desc` support → filed **tplyr2 #51**); (b) placement — see the bug below.
+  So the bespoke single-p column + `stamp()` machinery survive regardless, and `chi_p_str`/`aov_p_str` stay.
 - **denom_row (#35)** for 14-6.04/.05/.06 — emitted denominator row didn't match the pilot's exact format.
-- `fish_p_str`/`chi_p_str`/`aov_p_str` in R/helpers.R — single-p tests for 14-1.02/14-2.01 (not count/shift layers).
+- `fish_p_str` (2 calls in 14-1.02: AE / lack-of-efficacy reason) — separate single tests, not a count layer.
+
+### Two tplyr2 bugs found during the 14-2.01 attempt — NOT yet filed (both silent, wrong numbers)
+1. **`total_group()` rows leak into `assoc_test`'s fn `.data`.** The subset carries the synthetic "Total" arm
+   duplicates (508 rows vs 254), so a test computed over `.data` double-counts and returns a WRONG p with no
+   error (AGEGR1: 0.3347 vs the correct 0.1439). Caller must filter `.data$TRT01P != "Total"` — undocumented.
+2. **Omnibus p is placed before the sort.** `merge_assoc_column()` does `wide[1L, pval1 := ...]` on the PRE-sort
+   (alphabetical/dcast) frame, and `order_count_method="byfactor"` reorders afterwards — so with any
+   non-alphabetical ordering the p lands on an arbitrary category row (AGEGR1 → "65-80 yrs" instead of
+   "<65 yrs"; BMIBLGR1 → "25-<30" instead of "<25"). Pixel diff barely moves (0.07%); only the content check
+   caught it. Should place on the first row of the FINAL display order.
 
 ## Post-cleanup redundancy review + upstream issues filed (2026-07-25)
 The final code review surfaced recurring hand-written boilerplate. Each candidate was VERIFIED against the
