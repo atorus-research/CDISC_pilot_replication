@@ -20,11 +20,15 @@ cbic <- read_adam("adcibc") |>
          TRTP  = factor(TRTP, levels = ARMS))
 hn <- cbic |> distinct(USUBJID, TRTP) |> count(TRTP) |> deframe()   # header N (79/81/74)
 
-#' Compute the row-mean-scores CMH p-value for one visit.
-#' @param wk Analysis visit number (8, 16, or 24).
+#' Compute the row-mean-scores CMH p-value for one by-group subset.
+#'
+#' Called by tplyr2's omnibus `assoc_test()` once per by-group (here, once per
+#' visit block) over the raw source-data subset `.data`, which carries the
+#' `SITEGR1` stratification variable alongside the arm (`TRTP`) and response (`AVAL`).
+#' @param .data Source-data subset for the by-group (all arm levels/columns).
 #' @return Character string with the formatted p-value (ordinal AVAL by treatment, stratified by site group).
-cmh_pval <- function(wk) {
-  d <- cbic |> filter(AVISITN == wk) |> mutate(AVAL = ordered(AVAL), SITEGR1 = factor(SITEGR1))
+cmh_assoc <- function(.data) {
+  d <- .data |> mutate(AVAL = ordered(AVAL), SITEGR1 = factor(SITEGR1), TRTP = factor(TRTP, levels = ARMS))
   p <- pvalue(cmh_test(AVAL ~ TRTP | SITEGR1, data = d, scores = list(AVAL = seq_len(nlevels(d$AVAL)))))
   num_fmt(p, digits = 4, size = 5, int_len = 1)
 }
@@ -38,17 +42,21 @@ visit_block <- function(wk, lab) {
   b <- tplyr_build(tplyr_spec(cols = "TRTP", layers = tplyr_layers(group_count("AVALC",
          settings = layer_settings(
            format_strings = list(n_counts = f_str("xx (xxx%)", "n", "pct")),
-           order_count_method = "byfactor", zero_count_display = "count_only")))), d)
-  disp <- as_display(b)   # display-ready frame (rowlabel*/res*), build already ordered
+           order_count_method = "byfactor", zero_count_display = "count_only",
+           assoc_test = assoc_test(fn = cmh_assoc, format = f_str("x.xxxx", "p")))))), d)
+  disp <- as_display(b)   # display-ready frame (rowlabel*/res*/pval1), build already ordered
   cats <- tibble(AVALC = as.character(disp$rowlabel1),
                  res1 = as.character(disp$res1), res2 = as.character(disp$res2),
                  res3 = as.character(disp$res3), p = "")
+  # Omnibus assoc_test lands the block's single CMH p-value on the layer's first
+  # output row; lift it out to sit on this block's manually built "n" row.
+  pval <- disp$pval1[!is.na(disp$pval1) & disp$pval1 != ""][1]
   vn <- d |> count(TRTP, .drop = FALSE) |> deframe()
   n_row <- tibble(AVALC = "n",
                   res1 = sprintf("%2d", vn[["Placebo"]]),
                   res2 = sprintf("%2d", vn[["Xanomeline Low Dose"]]),
                   res3 = sprintf("%2d", vn[["Xanomeline High Dose"]]),
-                  p = cmh_pval(wk))
+                  p = pval)
   blk <- bind_rows(n_row, cats)
   blk$AVISIT <- ""; blk$AVISIT[1] <- lab
   pad_row(select(blk, AVISIT, AVALC, res1, res2, res3, p))

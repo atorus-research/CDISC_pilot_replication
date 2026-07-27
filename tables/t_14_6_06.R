@@ -24,26 +24,6 @@ adlbhy <- read_adam("adlbhy") |>
   group_by(USUBJID) |> filter(AVAL == max(AVAL)) |> filter(AVISITN == max(AVISITN)) |> ungroup() |>
   mutate(BASE = factor(BASE, c(0, 1)), AVAL = factor(AVAL, c(0, 1)), TRTP = factor(TRTP, ARMS))
 
-#' Compute the per-analyte row-mean-scores CMH p-value
-#' @param d One analyte's selected records (from `adlbhy`)
-#' @return Formatted p-value (3 dp), or "" when the test is not applicable
-#'
-#' Ordinal shift (AVAL scored 1/2) across treatment groups, stratified by baseline status.
-#' Blank when nobody shifted to High, or when the abnormal-at-baseline stratum is empty so
-#' "controlling for baseline status" is vacuous (e.g. HYLAW).
-cmh_pval <- function(d) {
-  if (all(d$AVAL == "0")) return("")
-  if (dplyr::n_distinct(d$BASE) < 2) return("")
-  dd <- d |> transmute(AVAL = ordered(as.character(AVAL), c("0", "1")),
-                       TRTP = factor(as.character(TRTP), levels = ARMS),
-                       BASE = factor(as.character(BASE), levels = c("0", "1")))
-  tryCatch(
-    num_fmt(as.numeric(pvalue(cmh_test(AVAL ~ TRTP | BASE, data = dd,
-                                       scores = list(AVAL = c(1, 2))))),
-            digits = 3, int_len = 1),
-    error = function(e) "")
-}
-
 #' Build the shift cells and n-row totals for one analyte
 #' @param pc PARAMCD of the analyte ("TRANSHY" or "HYLAW")
 #' @return A list with `n` (the n-row, incl. PVAL) and `shifts` (the shift-to rows)
@@ -51,14 +31,37 @@ analyte_rows <- function(pc) {
   d <- adlbhy |> filter(PARAMCD == pc)
   # group_shift with shift_denom = "column"; no `by` (one analyte per call) so the column
   # denominator is each TRTP x BASE baseline group. res columns come out TRTP x BASE.
-  # as_display() returns the display-ready frame (rowlabel1/res1..res6), dropping
+  # as_display() returns the display-ready frame (rowlabel1/res1..res6 + pval1), dropping
   # the internal ord* columns; the build is already factor-ordered so no re-sort.
+  #
+  # The analyte p-value is computed natively by tplyr2's omnibus assoc_test: the supplied
+  # fn runs once over this analyte's RAW source subset (all arms, both AVAL levels, incl.
+  # the BASE stratum) and returns the finished display verbatim. Row-mean-scores CMH, AVAL
+  # scored 1/2 across treatment groups stratified by baseline status BASE; "" guards when
+  # nobody shifted to High, or when the abnormal-at-baseline stratum is empty so
+  # "controlling for baseline status" is vacuous (e.g. HYLAW); tryCatch -> "" on model
+  # failure. With no `by` var the result lands on the layer's first output row and surfaces
+  # as `pval1`, so it is lifted off onto the n-row below where the pilot places it.
   b <- as_display(tplyr_build(tplyr_spec(cols = "TRTP",
         layers = tplyr_layers(group_shift(c(row = "AVAL", column = "BASE"),
           settings = layer_settings(
             shift_denom = "column",
             format_strings = list(n_counts = f_str("xx(xxx%)", "n", "pct")),
-            order_count_method = "byfactor", zero_count_display = "count_only")))), d))
+            order_count_method = "byfactor", zero_count_display = "count_only",
+            assoc_test = assoc_test(
+              fn = function(.data) {
+                if (all(.data$AVAL == "0")) return("")
+                if (dplyr::n_distinct(.data$BASE) < 2) return("")
+                dd <- .data |> transmute(AVAL = ordered(as.character(AVAL), c("0", "1")),
+                                         TRTP = factor(as.character(TRTP), levels = ARMS),
+                                         BASE = factor(as.character(BASE), levels = c("0", "1")))
+                tryCatch(
+                  num_fmt(as.numeric(pvalue(cmh_test(AVAL ~ TRTP | BASE, data = dd,
+                                                     scores = list(AVAL = c(1, 2))))),
+                          digits = 3, int_len = 1),
+                  error = function(e) "")
+              },
+              format = f_str("x.xxxx", "p")))))), d))
   rc <- grep("^res", names(b), value = TRUE)
   rl <- grep("^rowlabel", names(b), value = TRUE)
   sh <- tibble(SHIFT = as.character(b[[rl[1]]]))
@@ -71,9 +74,7 @@ analyte_rows <- function(pc) {
   nr[COLS] <- lapply(nr[COLS], function(x) sprintf("%2d", x))
   n_row <- tibble(SHIFT = "n")
   for (c in COLS) n_row[[c]] <- nr[[c]]
-  # assoc_test was rejected: with no `by` var it lands the p-value on the layer's
-  # first output row (the AVAL=0 shift row), not on the "n" row the pilot places it on.
-  n_row$PVAL <- cmh_pval(d)
+  n_row$PVAL <- dplyr::first(as.character(b$pval1))
   sh$PVAL <- ""
   list(n = n_row, shifts = sh)
 }

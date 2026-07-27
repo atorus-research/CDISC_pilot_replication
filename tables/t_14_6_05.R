@@ -54,12 +54,35 @@ comb <- bind_rows(read_adam("adlbc"), read_adam("adlbh")) |>
 # shift cells: n(%) shifting to each ANRIND, column-wise per (TRTP x BNRIND) baseline group.
 # group_shift with shift_denom = "column"; res columns come out TRTP x BNRIND
 # (Placebo|N, Placebo|H, Low|N, ...) matching COLS.
+#
+# The per-analyte p-value is computed natively by tplyr2's omnibus assoc_test: the
+# supplied fn runs once per PARAM by-group over that group's RAW source subset (all
+# arms, all response/baseline levels, incl. the BNRIND stratum) and returns the
+# finished display verbatim. Row-mean-scores CMH, ANRIND scored 1/2 across treatment
+# groups stratified by baseline BNRIND; "" guards when nobody shifted to High, or when
+# only one baseline stratum exists so "controlling for baseline status" is vacuous
+# (e.g. LYMPHOCYTES); tryCatch -> "" on model failure. The result lands on each
+# by-group's first output row and surfaces as `pval1` in as_display().
 b <- tplyr_build(tplyr_spec(cols = "TRTP",
        layers = tplyr_layers(group_shift(c(row = "ANRIND", column = "BNRIND"), by = "PARAM",
          settings = layer_settings(
            shift_denom = "column",
            format_strings = list(n_counts = f_str("xx(xxx%)", "n", "pct")),
-           order_count_method = "byfactor", zero_count_display = "count_only")))), comb)
+           order_count_method = "byfactor", zero_count_display = "count_only",
+           assoc_test = assoc_test(
+             fn = function(.data) {
+               if (all(.data$ANRIND == "N")) return("")
+               if (dplyr::n_distinct(.data$BNRIND) < 2) return("")
+               dd <- .data |> transmute(ANRIND = ordered(as.character(ANRIND), c("N", "H")),
+                                        TRTP   = factor(as.character(TRTP), levels = ARMS),
+                                        BNRIND = factor(as.character(BNRIND), levels = c("N", "H")))
+               tryCatch(
+                 num_fmt(as.numeric(pvalue(cmh_test(ANRIND ~ TRTP | BNRIND, data = dd,
+                                                    scores = list(ANRIND = c(1, 2))))),
+                         digits = 3, int_len = 1),
+                 error = function(e) "")
+             },
+             format = f_str("x.xxxx", "p")))))), comb)
 # as_display() returns the ordered, display-ready frame (rowlabel*/res* only,
 # internal ord*/row_id columns dropped).
 disp <- as_display(b)
@@ -68,6 +91,12 @@ rc <- grep("^res", names(disp), value = TRUE)   # PARAM,ANRIND | 6
 shift <- tibble(PARAM = as.character(disp[[rl[1]]]), SHIFT = as.character(disp[[rl[2]]]))
 for (i in seq_along(rc)) shift[[COLS[i]]] <- as.character(disp[[rc[i]]])
 shift$SHIFT <- recode(shift$SHIFT, "N" = "Normal", "H" = "High")
+# assoc_test placed the analyte p-value on each PARAM group's first output row
+# (blank on the rest); collapse to one value per PARAM for the n-row display.
+pv_lookup <- tibble(PARAM = as.character(disp[[rl[1]]]),
+                    PVAL = coalesce(as.character(disp$pval1), "")) |>
+  group_by(PARAM) |> summarize(PVAL = dplyr::first(PVAL), .groups = "drop")
+pv_lookup <- setNames(pv_lookup$PVAL, pv_lookup$PARAM)
 
 # n rows: baseline-group N per (PARAM, TRTP, BNRIND) column
 nrows <- comb |> count(PARAM, TRTP, BNRIND, .drop = FALSE) |>
@@ -76,27 +105,6 @@ nrows <- comb |> count(PARAM, TRTP, BNRIND, .drop = FALSE) |>
 nrows[COLS] <- lapply(nrows[COLS], function(x) sprintf("%2d", x))
 nrows$SHIFT <- "n"
 nrows$PARAM <- as.character(nrows$PARAM)
-
-#' Compute the per-analyte row-mean-scores CMH p-value
-#' @param pv PARAM (analyte) label
-#' @return Formatted p-value (3 dp), or "" when the test is not applicable
-#'
-#' Ordinal shift (ANRIND scored 1/2) across treatment groups, stratified by baseline
-#' status BNRIND. Blank when nobody shifted to High, or when the abnormal-at-baseline
-#' stratum is empty so "controlling for baseline status" is vacuous (e.g. LYMPHOCYTES).
-cmh_pval <- function(pv) {
-  d <- comb |> filter(PARAM == pv)
-  if (all(d$ANRIND == "N")) return("")
-  if (dplyr::n_distinct(d$BNRIND) < 2) return("")
-  dd <- d |> transmute(ANRIND = ordered(as.character(ANRIND), c("N", "H")),
-                       TRTP   = factor(as.character(TRTP), levels = ARMS),
-                       BNRIND = factor(as.character(BNRIND), levels = c("N", "H")))
-  tryCatch(
-    num_fmt(as.numeric(pvalue(cmh_test(ANRIND ~ TRTP | BNRIND, data = dd,
-                                       scores = list(ANRIND = c(1, 2))))),
-            digits = 3, int_len = 1),
-    error = function(e) "")
-}
 
 # assemble per PARAM: n (+p), Normal, High (drop High if all six cells zero)
 
@@ -109,7 +117,7 @@ for (pv in PARAM_ORDER) {
   nr <- nrows |> filter(PARAM == pv)
   if (nrow(nr) == 0 || all(as.integer(sub("\\s", "", unlist(nr[COLS]))) == 0)) next
   nr$LBL <- pv
-  nr$PVAL <- cmh_pval(pv)
+  nr$PVAL <- unname(coalesce(pv_lookup[pv], ""))
   sh <- shift |> filter(PARAM == pv)
   normal <- sh |> filter(SHIFT == "Normal")
   high <- sh |> filter(SHIFT == "High")

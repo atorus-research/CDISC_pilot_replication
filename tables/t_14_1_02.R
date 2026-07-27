@@ -34,8 +34,11 @@ adsl <- adsl |>
 #' Build an n(%) count block for a categorical variable
 #' @param data Analysis data; the "Total" arm is generated natively via total_group
 #' @param var Name of the categorical variable to count
+#' @param assoc Optional assoc_test() spec; when supplied, its native omnibus
+#'   p-value column (pval1) is carried out as a `p` column, landing on the
+#'   block's first output row
 #' @return Tibble with an indented rowlbl and res1..res4 (Placebo/Low/High/Total); denominators are arm N via pop_data
-count_block <- function(data, var) {
+count_block <- function(data, var, assoc = NULL) {
   s <- tplyr_spec(cols = "TRT01P",
                   total_groups = list(total_group("TRT01P")),
                   pop_data = pop_data(cols = c("TRT01P" = "TRT01P")),
@@ -43,13 +46,16 @@ count_block <- function(data, var) {
                     settings = layer_settings(
                       format_strings = list(n_counts = f_str("xxx (xxx%)", "n", "pct")),
                       order_count_method = "byfactor",
-                      missing_count = list(label = "Missing")))))
+                      missing_count = list(label = "Missing"),
+                      assoc_test = assoc))))
   b <- tplyr_build(s, data, pop_data = adsl)
   # order() keeps the NA-ord missing_count row last (as_display would place it first)
   b <- b[order(b$ord_layer_1), , drop = FALSE]
   rc <- grep("^res", names(b), value = TRUE)              # Placebo/Low/High/Total
   out <- tibble(rowlbl = paste0("  ", as.character(b$rowlabel1)))
   for (i in seq_along(rc)) out[[paste0("res", i)]] <- as.character(b[[rc[i]]])
+  # Native omnibus p (pval1) already sits on the first row post-order()
+  if (!is.null(assoc)) out$p <- as.character(b$pval1)
   out
 }
 #' Build a section-header row with a label and empty result cells
@@ -61,19 +67,37 @@ sec  <- function(t) tibble(rowlbl = t, res1 = "", res2 = "", res3 = "", res4 = "
 blank <- function() tibble(rowlbl = "", res1 = "", res2 = "", res3 = "", res4 = "")
 
 # Completion status (denominator = full arm N)
-comp <- count_block(adsl, "COMP_STAT")
-comp_p <- fish_p_str(adsl$COMP24FL, adsl$TRT01P)
+# Native omnibus assoc_test: Fisher's exact of COMP24FL vs TRT01P computed once
+# over the layer's raw subset, landing on the block's first row ("Completed
+# Week 24"). The subset arrives with the total_group() rows appended - a "Total"
+# pseudo-arm duplicating every subject - so restrict to ARMS to compute the same
+# 2x3 test the hand-rolled helper did. Character return reproduces the "<.0001"
+# floor and fixed-width format verbatim.
+comp <- count_block(adsl, "COMP_STAT",
+  assoc = assoc_test(
+    fn = function(.data) {
+      d <- .data[as.character(.data$TRT01P) %in% ARMS, , drop = FALSE]
+      p <- suppressWarnings(
+        fisher.test(factor(d$COMP24FL), factor(as.character(d$TRT01P)))$p.value)
+      if (round(p, 4) == 0) return("<.0001")
+      format(round(p, 4), width = 10, nsmall = 4)
+    },
+    format = f_str("x.xxxx", "p")))
 
 # Reason for early termination (numerator = terminated; denom = full arm N)
+# These two p-values stay hand-rolled: omnibus assoc_test emits ONE p per
+# by-group on the group's first row, but this block needs two (Adverse Event and
+# Lack of Efficacy) on two non-adjacent rows of a single un-by'd layer. The
+# tests also span the full ITT population, while the layer's subset is
+# terminators only.
 term_dat <- adsl |> filter(COMP24FL == "N")
 term <- count_block(term_dat, "DCREASCD")
 # %in% (not ==): completers have NA DCREASCD and must count as 0, not be dropped from the test.
 ae_p  <- fish_p_str(as.integer(adsl$DCREASCD %in% "Adverse Event"),      adsl$TRT01P, width = 6)
 loe_p <- fish_p_str(as.integer(adsl$DCREASCD %in% "Lack of Efficacy[2]"), adsl$TRT01P, width = 6)
 
-# p-values sit on each section's first data row and the Lack-of-Efficacy row.
+# term p-values sit on the section's first data row and the Lack-of-Efficacy row.
 # The trailing "Missing" row in each block is emitted natively via missing_count.
-comp$p <- ""; comp$p[1] <- comp_p
 term$p <- ""; term$p[1] <- ae_p
 term$p[term$rowlbl == "  Lack of Efficacy[2]"] <- loe_p
 
