@@ -156,12 +156,16 @@ subset (stratum columns included) and can return a preformatted string, so these
 
 **Still kept manual**
 - **14-2.01** (demographics) — attempted and reverted. Two blockers: (a) its 9 CONTINUOUS `aov_p_str` p-values
-  can't move (`assoc_test` has no `group_desc` support → filed **tplyr2 #51**); (b) placement — see the bug below.
-  So the bespoke single-p column + `stamp()` machinery survive regardless, and `chi_p_str`/`aov_p_str` stay.
+  couldn't move — `assoc_test` had no `group_desc` support (**#51**); **RESOLVED by PR #52** (open as of
+  2026-07-27, verified: desc-layer `assoc_test` returns the ANOVA p exactly, one p per `by` characteristic).
+  (b) placement — the categorical p-values land on the wrong category row (**#54**, below), and SEX/RACE need
+  their p on a manually prepended "n" row above the layer output entirely. **➜ Re-attempt the 14-2.01 adoption
+  once #52 merges AND #54 is fixed**; until then the bespoke single-p column + `stamp()` machinery and
+  `chi_p_str`/`aov_p_str` stay.
 - **denom_row (#35)** for 14-6.04/.05/.06 — emitted denominator row didn't match the pilot's exact format.
 - `fish_p_str` (2 calls in 14-1.02: AE / lack-of-efficacy reason) — separate single tests, not a count layer.
 
-### Two tplyr2 bugs found during the 14-2.01 attempt — NOT yet filed (both silent, wrong numbers)
+### Two tplyr2 bugs found during the 14-2.01 attempt — FILED as #53 and #54 (both silent, wrong numbers)
 1. **`total_group()` rows leak into `assoc_test`'s fn `.data`.** The subset carries the synthetic "Total" arm
    duplicates (508 rows vs 254), so a test computed over `.data` double-counts and returns a WRONG p with no
    error (AGEGR1: 0.3347 vs the correct 0.1439). Caller must filter `.data$TRT01P != "Total"` — undocumented.
