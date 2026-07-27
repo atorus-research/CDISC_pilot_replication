@@ -754,39 +754,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">bind_rows</span>(blank, df)</span>
 <span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a>}</span>
 <span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-48"><a href="#cb1-48" aria-hidden="true" tabindex="-1"></a><span class="co">#' Compute a one-way ANOVA p-value versus treatment, formatted to a fixed width</span></span>
-<span id="cb1-49"><a href="#cb1-49" aria-hidden="true" tabindex="-1"></a><span class="co">#' @param data Data frame</span></span>
-<span id="cb1-50"><a href="#cb1-50" aria-hidden="true" tabindex="-1"></a><span class="co">#' @param var Response variable name</span></span>
-<span id="cb1-51"><a href="#cb1-51" aria-hidden="true" tabindex="-1"></a><span class="co">#' @param trt Treatment variable name</span></span>
-<span id="cb1-52"><a href="#cb1-52" aria-hidden="true" tabindex="-1"></a><span class="co">#' @return Character scalar (width 10, 4 decimals)</span></span>
-<span id="cb1-53"><a href="#cb1-53" aria-hidden="true" tabindex="-1"></a>aov_p_str <span class="ot">&lt;-</span> <span class="cf">function</span>(data, var, <span class="at">trt =</span> <span class="st">"TRT01P"</span>) {</span>
-<span id="cb1-54"><a href="#cb1-54" aria-hidden="true" tabindex="-1"></a>  f <span class="ot">&lt;-</span> stats<span class="sc">::</span><span class="fu">as.formula</span>(<span class="fu">paste</span>(var, <span class="st">"~"</span>, trt))</span>
-<span id="cb1-55"><a href="#cb1-55" aria-hidden="true" tabindex="-1"></a>  p <span class="ot">&lt;-</span> <span class="fu">summary</span>(stats<span class="sc">::</span><span class="fu">aov</span>(f, data, <span class="at">na.action =</span> stats<span class="sc">::</span>na.omit))[[<span class="dv">1</span>]][[<span class="st">"Pr(&gt;F)"</span>]][<span class="dv">1</span>]</span>
-<span id="cb1-56"><a href="#cb1-56" aria-hidden="true" tabindex="-1"></a>  <span class="fu">format</span>(<span class="fu">round</span>(p, <span class="dv">4</span>), <span class="at">width =</span> <span class="dv">10</span>, <span class="at">nsmall =</span> <span class="dv">4</span>)</span>
-<span id="cb1-57"><a href="#cb1-57" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb1-58"><a href="#cb1-58" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-59"><a href="#cb1-59" aria-hidden="true" tabindex="-1"></a><span class="co">#' Compute a Fisher's exact p-value, formatted with a "&lt;.0001" floor</span></span>
-<span id="cb1-60"><a href="#cb1-60" aria-hidden="true" tabindex="-1"></a><span class="co">#' @param res Response factor values</span></span>
-<span id="cb1-61"><a href="#cb1-61" aria-hidden="true" tabindex="-1"></a><span class="co">#' @param cats Grouping factor values</span></span>
-<span id="cb1-62"><a href="#cb1-62" aria-hidden="true" tabindex="-1"></a><span class="co">#' @param width Field width for non-floored values</span></span>
-<span id="cb1-63"><a href="#cb1-63" aria-hidden="true" tabindex="-1"></a><span class="co">#' @return Character scalar</span></span>
-<span id="cb1-64"><a href="#cb1-64" aria-hidden="true" tabindex="-1"></a>fish_p_str <span class="ot">&lt;-</span> <span class="cf">function</span>(res, cats, <span class="at">width =</span> <span class="dv">10</span>) {</span>
-<span id="cb1-65"><a href="#cb1-65" aria-hidden="true" tabindex="-1"></a>  p <span class="ot">&lt;-</span> <span class="fu">suppressWarnings</span>(<span class="fu">fisher.test</span>(<span class="fu">factor</span>(res), <span class="fu">factor</span>(cats))<span class="sc">$</span>p.value)</span>
-<span id="cb1-66"><a href="#cb1-66" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">round</span>(p, <span class="dv">4</span>) <span class="sc">==</span> <span class="dv">0</span>) <span class="fu">return</span>(<span class="st">"&lt;.0001"</span>)</span>
-<span id="cb1-67"><a href="#cb1-67" aria-hidden="true" tabindex="-1"></a>  <span class="fu">format</span>(<span class="fu">round</span>(p, <span class="dv">4</span>), <span class="at">width =</span> width, <span class="at">nsmall =</span> <span class="dv">4</span>)</span>
-<span id="cb1-68"><a href="#cb1-68" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb1-69"><a href="#cb1-69" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-70"><a href="#cb1-70" aria-hidden="true" tabindex="-1"></a><span class="co">#' Compute a Pearson chi-square p-value versus treatment, formatted with a "&lt;.0001" floor</span></span>
-<span id="cb1-71"><a href="#cb1-71" aria-hidden="true" tabindex="-1"></a><span class="co">#' @param data Data frame</span></span>
-<span id="cb1-72"><a href="#cb1-72" aria-hidden="true" tabindex="-1"></a><span class="co">#' @param var Response variable name</span></span>
-<span id="cb1-73"><a href="#cb1-73" aria-hidden="true" tabindex="-1"></a><span class="co">#' @param trt Treatment variable name</span></span>
-<span id="cb1-74"><a href="#cb1-74" aria-hidden="true" tabindex="-1"></a><span class="co">#' @return Character scalar</span></span>
-<span id="cb1-75"><a href="#cb1-75" aria-hidden="true" tabindex="-1"></a>chi_p_str <span class="ot">&lt;-</span> <span class="cf">function</span>(data, var, <span class="at">trt =</span> <span class="st">"TRT01P"</span>) {</span>
-<span id="cb1-76"><a href="#cb1-76" aria-hidden="true" tabindex="-1"></a>  p <span class="ot">&lt;-</span> <span class="fu">suppressWarnings</span>(</span>
-<span id="cb1-77"><a href="#cb1-77" aria-hidden="true" tabindex="-1"></a>    stats<span class="sc">::</span><span class="fu">chisq.test</span>(<span class="fu">factor</span>(data[[var]]), <span class="fu">factor</span>(data[[trt]]))<span class="sc">$</span>p.value)</span>
-<span id="cb1-78"><a href="#cb1-78" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">round</span>(p, <span class="dv">4</span>) <span class="sc">==</span> <span class="dv">0</span>) <span class="fu">return</span>(<span class="st">"&lt;.0001"</span>)</span>
-<span id="cb1-79"><a href="#cb1-79" aria-hidden="true" tabindex="-1"></a>  <span class="fu">format</span>(<span class="fu">round</span>(p, <span class="dv">4</span>), <span class="at">width =</span> <span class="dv">10</span>, <span class="at">nsmall =</span> <span class="dv">4</span>)</span>
-<span id="cb1-80"><a href="#cb1-80" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-48"><a href="#cb1-48" aria-hidden="true" tabindex="-1"></a><span class="co">#' Compute a Fisher's exact p-value, formatted with a "&lt;.0001" floor</span></span>
+<span id="cb1-49"><a href="#cb1-49" aria-hidden="true" tabindex="-1"></a><span class="co">#' @param res Response factor values</span></span>
+<span id="cb1-50"><a href="#cb1-50" aria-hidden="true" tabindex="-1"></a><span class="co">#' @param cats Grouping factor values</span></span>
+<span id="cb1-51"><a href="#cb1-51" aria-hidden="true" tabindex="-1"></a><span class="co">#' @param width Field width for non-floored values</span></span>
+<span id="cb1-52"><a href="#cb1-52" aria-hidden="true" tabindex="-1"></a><span class="co">#' @return Character scalar</span></span>
+<span id="cb1-53"><a href="#cb1-53" aria-hidden="true" tabindex="-1"></a>fish_p_str <span class="ot">&lt;-</span> <span class="cf">function</span>(res, cats, <span class="at">width =</span> <span class="dv">10</span>) {</span>
+<span id="cb1-54"><a href="#cb1-54" aria-hidden="true" tabindex="-1"></a>  p <span class="ot">&lt;-</span> <span class="fu">suppressWarnings</span>(<span class="fu">fisher.test</span>(<span class="fu">factor</span>(res), <span class="fu">factor</span>(cats))<span class="sc">$</span>p.value)</span>
+<span id="cb1-55"><a href="#cb1-55" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">round</span>(p, <span class="dv">4</span>) <span class="sc">==</span> <span class="dv">0</span>) <span class="fu">return</span>(<span class="st">"&lt;.0001"</span>)</span>
+<span id="cb1-56"><a href="#cb1-56" aria-hidden="true" tabindex="-1"></a>  <span class="fu">format</span>(<span class="fu">round</span>(p, <span class="dv">4</span>), <span class="at">width =</span> width, <span class="at">nsmall =</span> <span class="dv">4</span>)</span>
+<span id="cb1-57"><a href="#cb1-57" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 
 
 
