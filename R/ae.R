@@ -16,8 +16,18 @@ build_ae_table <- function(table, source_path, serious = FALSE) {
   adae <- adae |> mutate(TRTA = factor(TRTA, levels = ARMS))
   adsl <- read_adam("adsl")
   # Population denominators per arm, from the same ADSL/treatment variable the tplyr2
-  # pop_data uses (TRT01A), ordered Placebo / Low / High.
+  # pop_data uses (TRT01A), ordered Placebo / Low / High. Used for the header labels.
   N <- unname(adsl |> count(TRT01A) |> deframe() |> (\(v) v[ARMS])())
+
+  #' Fisher's exact p-value display for one arm-comparison 2x2 (reference vs comparison)
+  #' @param m 2x2 matrix c(n_ref, n_cmp, N_ref - n_ref, N_cmp - n_cmp) supplied by assoc_test
+  #' @return "" when neither arm has an event, ">.99" ceiling, "*" flag for p < .15
+  ae_p <- function(m) {
+    if (sum(m[, 1]) == 0) return(NA_character_)
+    p <- fisher.test(m)$p.value
+    disp <- num_fmt(p, digits = 3, size = 5, int_len = 1)
+    if (p > .99) ">.99" else if (p < .15) paste0(disp, "*") else paste0(disp, " ")
+  }
 
   spec <- tplyr_spec(
     cols = "TRTA",
@@ -29,7 +39,14 @@ build_ae_table <- function(table, source_path, serious = FALSE) {
                             "e" = f_str("[x]", "n")),
         limit_data_by = c("AEBODSYS", "AEDECOD"),
         total_row = TRUE, total_row_label = "ANY BODY SYSTEM",
-        zero_count_display = "count_only")))
+        zero_count_display = "count_only",
+        # Pairwise Fisher's exact p (Placebo vs each active arm) on every SOC/PT/total row;
+        # ae_p supplies the "* / >.99 / blank" display verbatim (character return).
+        assoc_test = assoc_test(
+          fn = ae_p, format = f_str("xxxxxx", "p"),
+          reference = "Placebo",
+          comparisons = c("Xanomeline Low Dose", "Xanomeline High Dose"),
+          total_row = TRUE))))
   )
   b <- tplyr_build(spec, adae, pop_data = adsl)
   bd <- as_display(b)   # display-ready frame: rowlabel*/res1..res6, row order preserved (ord/row_id dropped)
@@ -42,28 +59,12 @@ build_ae_table <- function(table, source_path, serious = FALSE) {
     soc = as.character(bd$rowlabel1), pt = as.character(bd$rowlabel2), depth = b$ord_layer_2,
     npct_0  = as.character(bd$res1), e_0  = as.character(bd$res2),
     npct_54 = as.character(bd$res3), e_54 = as.character(bd$res4),
-    npct_81 = as.character(bd$res5), e_81 = as.character(bd$res6)
+    npct_81 = as.character(bd$res5), e_81 = as.character(bd$res6),
+    p_low = as.character(bd$pval1), p_high = as.character(bd$pval2)   # pairwise Fisher via assoc_test
   ) |>
     mutate(n0 = lead_int(npct_0), n54 = lead_int(npct_54), n81 = lead_int(npct_81)) |>
     mutate(soc_rank = if_else(depth == 0, 0L, 1L), soc_key = if_else(depth == 0, "", soc)) |>
-    arrange(soc_rank, soc_key, depth, desc(n81), pt)
-
-  #' Compute a formatted Fisher's exact p-value for one AE row
-  #' @param n_p Placebo count
-  #' @param n_a Active-arm count
-  #' @param N_p Placebo population size
-  #' @param N_a Active-arm population size
-  #' @return Character scalar ("" when both counts are 0; trailing "*" flags p < .15)
-  fisher_ae <- function(n_p, n_a, N_p, N_a) {
-    if ((n_p + n_a) == 0) return("")
-    p <- fisher.test(matrix(c(n_p, n_a, N_p - n_p, N_a - n_a), nrow = 2))$p.value
-    disp <- num_fmt(p, digits = 3, size = 5, int_len = 1)
-    if (p > .99) ">.99" else if (p < .15) paste0(disp, "*") else paste0(disp, " ")
-  }
-  d <- d |> rowwise() |>
-    mutate(p_low  = fisher_ae(n0, n54, N[1], N[2]),
-           p_high = fisher_ae(n0, n81, N[1], N[3])) |>
-    ungroup() |>
+    arrange(soc_rank, soc_key, depth, desc(n81), pt) |>
     mutate(
       AETERM = if_else(depth == 2, paste0("  ", pt), soc),
       c_ae_0  = if_else(n0  > 0, e_0,  ""),
