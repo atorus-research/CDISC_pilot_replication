@@ -45,17 +45,6 @@ top_spacer <- function(df) {
   dplyr::bind_rows(blank, df)
 }
 
-#' Compute a one-way ANOVA p-value versus treatment, formatted to a fixed width
-#' @param data Data frame
-#' @param var Response variable name
-#' @param trt Treatment variable name
-#' @return Character scalar (width 10, 4 decimals)
-aov_p_str <- function(data, var, trt = "TRT01P") {
-  f <- stats::as.formula(paste(var, "~", trt))
-  p <- summary(stats::aov(f, data, na.action = stats::na.omit))[[1]][["Pr(>F)"]][1]
-  format(round(p, 4), width = 10, nsmall = 4)
-}
-
 #' Compute a Fisher's exact p-value, formatted with a "<.0001" floor
 #' @param res Response factor values
 #' @param cats Grouping factor values
@@ -65,16 +54,4 @@ fish_p_str <- function(res, cats, width = 10) {
   p <- suppressWarnings(fisher.test(factor(res), factor(cats))$p.value)
   if (round(p, 4) == 0) return("<.0001")
   format(round(p, 4), width = width, nsmall = 4)
-}
-
-#' Compute a Pearson chi-square p-value versus treatment, formatted with a "<.0001" floor
-#' @param data Data frame
-#' @param var Response variable name
-#' @param trt Treatment variable name
-#' @return Character scalar
-chi_p_str <- function(data, var, trt = "TRT01P") {
-  p <- suppressWarnings(
-    stats::chisq.test(factor(data[[var]]), factor(data[[trt]]))$p.value)
-  if (round(p, 4) == 0) return("<.0001")
-  format(round(p, 4), width = 10, nsmall = 4)
 }
