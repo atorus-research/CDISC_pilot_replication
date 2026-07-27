@@ -163,8 +163,28 @@ the separate `adsl3` 3-arm frame is gone. All 12 p-values verified unchanged (5 
 AGEGR1 0.1439 and SEX 0.1409, the two #53/#54 had been silently corrupting. **`aov_p_str` and `chi_p_str`
 retired from R/helpers.R.**
 
+**Header (N=) from `tplyr_header_n()` (2026-07-27)** — `R/ae.R` and 14-7.04 now read the header N off the build
+instead of counting ADSL a second time, so the displayed denominator is provably the one used for the percentages
+(the two-sources-of-truth risk behind the old hardcoded `c(86,84,84)`). Only these two: the other 16 N-deriving
+programs don't pass `pop_data` (they scope with `denoms_by`/layer totals) and adding it just to read the N back
+would change their denominators; 14-1.02's builds live inside a per-block helper, so hoisting would be worse code.
+
 **Still kept manual**
 - `fish_p_str` (2 calls in 14-1.02: AE / lack-of-efficacy reason) — single 2×2 tests, not count layers.
+- `arm_label()` character-width header wrapping (13 files) — filed as **clinify #112**.
+- House-style header padding via `flextable::padding(part="header")` rather than `clin_header_pad` — the verb
+  clobbers the per-row exceptions 14-1.03/14-3.10 need. Filed as **clinify #113** (verified reprex).
+- Hand-rolled shift `n` rows in 14-6.04/.05/.06 — `denom_row` renders literal `"NA"` for an absent baseline group
+  and inherits the `n_counts` format width. Diagnosed and filed as **tplyr2 #55**.
+
+## Open upstream (as of 2026-07-27)
+- **clinify #112** header wrapping to rendered column width (the wrapping half of #15, maintainer-invited).
+- **clinify #113** `clin_header_pad()` overwrites per-row `flextable::padding(i=)` instead of composing.
+- **clinify #101** `as_clintable()` header padding reset by `clin_column_headers()`; **#107** haven value-label
+  partial match — both have pilot workarounds.
+- **tplyr2 #55** `denom_row` NA/width (the last thing keeping a hand-rolled n-row).
+- Declined upstream, no action: **clinify #106** in-body row grouping (Word owns pagination here), **#15** N
+  injection (mapping + population choice aren't derivable — `tplyr_header_n()` covers the number instead).
 - **denom_row (#35)** for 14-6.04/.05/.06 — emitted denominator row didn't match the pilot's exact format.
 - `fish_p_str` (2 calls in 14-1.02: AE / lack-of-efficacy reason) — separate single tests, not a count layer.
 
