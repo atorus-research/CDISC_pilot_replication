@@ -217,6 +217,27 @@ header cells differently from the reference** (e.g. 14-1.02's `p-value` on heade
 a class that was invisible to the pixel and text-set gates. Left the height-vs-leading design choice to the
 maintainer (leading is what the multi-line case actually needs).
 
+### clinify #117 RESOLVED in PR #118 (merged to development) — adopted, held for release
+Both levers shipped: `clin_row_height(header =, header_leading =)`. The maintainer measured the design question
+and confirmed a header *height* with `rule="atleast"` is only a floor (a 3-line cell grows past it) — only
+*leading* reaches the multi-line case, so both ship with docs pointing at the right one. Verified
+`header_leading=0.75` survives the pilot's styler `line_spacing(space=1, part="all")` (applied at
+`finish_table_()`, after the option styler). **14-4.01 adopted it byte-identically**: its raw
+`flextable::line_spacing(part="header")` is gone and `spanned_default()` is now a plain passthrough. Held as
+`scratchpad/header_leading_adoption.patch` — clinify `main` is 13 commits behind `development`, so the pilot's
+`@main` pin has none of #114/#115/#116/#118 yet. **➜ apply once development ships to main.**
+NOTE: `header_leading` moves leading, NOT where header lines break — it does NOT address the 9/30 stacking
+divergence (filed separately as #120); citing that on #117 was the wrong evidence for this lever.
+
+### Filed 2026-07-27 from the #118 adoption
+- **clinify #119** — `clin_row_height()` REPLACES on a second call instead of merging unspecified args.
+  Reproduced on pinned main (predates #118): chaining `clin_row_height(title=)` after
+  `clin_row_height(body=15.35)` silently reverts body to the flextable default. Cost a 3.189% pixel diff with
+  no error; the pilot now threads `header_leading` through the single central call in `add_titles_footnotes()`.
+- **clinify #120** — multi-line header cells stack one line higher than the reference in **9/30** tables
+  (14-1.02, 14-5.01/.02, 14-6.02/.04/.05, 14-7.01/.02/.04). Filed at the maintainer's invitation on #118.
+  Cosmetic and pre-existing; may end up documented as a deliberate divergence.
+
 ## Open upstream (as of 2026-07-27)
 - **clinify #112** header wrapping to rendered column width (the wrapping half of #15, maintainer-invited).
 - **clinify #113** `clin_header_pad()` overwrites per-row `flextable::padding(i=)` instead of composing.
