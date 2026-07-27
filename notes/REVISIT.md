@@ -208,6 +208,15 @@ rule was never detected and the cut fell back to a fixed page fraction, landing 
 against the table's own ink extent. Against the reference RTFs 21/30 match exactly; the other 9 carry
 pre-existing multi-line-header stacking divergences, so reference-mode is informational, not a gate.
 
+### clinify #117 — header pitch in clin_row_height() (filed 2026-07-27)
+The unshipped third of #97: row pitch → `clin_row_height`, header buffer/gap → `clin_header_pad` (+#113), but
+**header pitch has no clinify lever**. Verified `clin_row_height(body=15.35,…)` moves body rowheights
+0.25→0.213 while the header stays at `line_spacing=1`; only a raw `flextable::line_spacing(part="header")`
+touches it (14-4.01 uses `space=0.75`). Motivated by the new header check: **9/30 tables stack multi-line
+header cells differently from the reference** (e.g. 14-1.02's `p-value` on header line 5 vs the reference's 6) —
+a class that was invisible to the pixel and text-set gates. Left the height-vs-leading design choice to the
+maintainer (leading is what the multi-line case actually needs).
+
 ## Open upstream (as of 2026-07-27)
 - **clinify #112** header wrapping to rendered column width (the wrapping half of #15, maintainer-invited).
 - **clinify #113** `clin_header_pad()` overwrites per-row `flextable::padding(i=)` instead of composing.
