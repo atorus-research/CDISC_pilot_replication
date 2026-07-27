@@ -92,15 +92,12 @@ ref_timestamp <- function(table_number, ref_dir = REF_DIR) {
 #' @param path Path to the titles spreadsheet.
 #' @param source_path Source path passed to token substitution.
 #' @param date Footer date; `NULL` uses the table's reference-RTF timestamp.
-#' @param header_leading Optional header line-spacing multiple for tables with
-#'   multi-line header cells (e.g. wrapped arm labels). Passed through to the single
-#'   `clin_row_height()` call below, because a second call would replace it rather
-#'   than add to it.
-#' @return `x` with titles, footnotes and row height applied.
+#' @return `x` with titles, footnotes and row height applied. A table needing a
+#'   different pitch can refine it by calling `clin_row_height()` again with just
+#'   that argument; clinify folds a later call into this one.
 add_titles_footnotes <- function(x, table_number,
                                  path = "data/titles.xlsx",
-                                 source_path = NULL, date = NULL,
-                                 header_leading = NULL) {
+                                 source_path = NULL, date = NULL) {
   if (is.null(date)) date <- ref_timestamp(table_number)
   tf <- read_titles(table_number, path, source_path, date)
   # One long-form data frame drives both verbs (clinify selects each surface's
@@ -111,6 +108,5 @@ add_titles_footnotes <- function(x, table_number,
     clinify::clin_add_titles(tf) |>
     clinify::clin_add_footnotes(tf) |>
     clinify::clin_row_height(body = 15.35, title = 11.4, footnote = 11.4,
-                             header_leading = header_leading,
                              rule = "atleast", unit = "pt")
 }
