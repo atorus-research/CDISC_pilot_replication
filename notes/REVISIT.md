@@ -177,6 +177,37 @@ would change their denominators; 14-1.02's builds live inside a per-block helper
 - Hand-rolled shift `n` rows in 14-6.04/.05/.06 — `denom_row` renders literal `"NA"` for an absent baseline group
   and inherits the `n_counts` format width. Diagnosed and filed as **tplyr2 #55**.
 
+## Unmerged upstream PRs — all evaluated 2026-07-27 (pilot verified byte-identical on each)
+- **tplyr2 #56** (→#55 denom_row): verified at SHA d7eb9fc. Absent baseline group now `0` (was literal `"NA"`),
+  and `denom_row_format = f_str("xx","n")` gives the reference's 2-char field. **All three shift tables adopt it
+  byte-identically** (14-6.04 28pp, 14-6.05 5pp, 14-6.06 1pp incl. the corrected TRANSHY p) — held as
+  `scratchpad/denom_row_adoption.patch`. **➜ apply on merge**; retires the last hand-rolled n-row.
+- **clinify #114 (→#107), #115 (→#101), #116 (→#113)**: tested as a merged set (throwaway worktree off
+  `development`). **Full 30-sweep byte-identical** — notably #115 restores 9pt header padding after
+  `clin_column_headers()`, but the house styler's `flextable::padding(part="header")` runs later and wins, so
+  the pilot is unaffected. #107 needs no pilot change (no label-stripping remains). **#116 unblocks adopting
+  `clin_header_pad` centrally** — verified `above=c(18,34)` and `above=18, rows=1` both preserve the per-row
+  exception. **➜ optional adoption on merge**: replace the styler's raw `flextable::padding` and the two
+  per-row hacks (14-1.03 row 2 = 34pt, 14-3.10 rows 1/2 = 21/2pt) with the native verb.
+
+## clinify #112 (header wrapping) — CLOSED won't-do, and the reasoning corrects our premise
+Not a guess at the rendered width: `str_wrap(width = 10)` is a **deliberate override** of it. The arm spanner
+merges across three 0.45in columns (~1.29in ≈ 15 chars at Courier New 10pt), so Word legitimately breaks
+`Xanomeline Low | Dose`; the reference breaks `Xanomeline | Low Dose`. **A width-derived mechanism cannot produce
+a wrap narrower than the width**, so neither proposed shape could work. The constant is load-bearing and stays
+in the program next to its comment. (`arm_label()` keeps the explicit width; only `sprintf` boilerplate could
+ever be factored out, and that's a project helper, not a clinify change.)
+
+## Harness gap closed (2026-07-27) — from the #112 investigation
+A visibly wrong header wrap **passed every gate**: pixel moved 2.408% → 2.417% (still PASS) and
+`page_text_set()` strips all whitespace, so a re-wrap is invisible to it. Added `header_compare()` +
+`compare_table.py --header`, validated by reproducing that exact experiment (fails unwrapped, passes restored),
+and wired into the build-vs-baseline sweep (`hdr=ok` for all 30). Also fixed `header_rule_pt()`: the rule
+threshold was page-relative (>0.9 × page width) but these tables span only ~82% of a landscape page, so the
+rule was never detected and the cut fell back to a fixed page fraction, landing mid-header — now measured
+against the table's own ink extent. Against the reference RTFs 21/30 match exactly; the other 9 carry
+pre-existing multi-line-header stacking divergences, so reference-mode is informational, not a gate.
+
 ## Open upstream (as of 2026-07-27)
 - **clinify #112** header wrapping to rendered column width (the wrapping half of #15, maintainer-invited).
 - **clinify #113** `clin_header_pad()` overwrites per-row `flextable::padding(i=)` instead of composing.
