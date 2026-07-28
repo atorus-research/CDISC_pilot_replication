@@ -75,6 +75,9 @@ ancova_block <- function(dat, week, use_base) {
 #' @param endpoint Endpoint shape: "ADAS" (change-from-baseline) or "CIBIC" (score)
 #' @param sex Optional SEX subset
 #' @param extra_filter Unquoted expression AND-ed onto the base EFFFL/ITTFL/PARAMCD filter
+#'   of the ANALYSIS data (record-level; e.g. `DTYPE != "LOCF"`)
+#' @param pop_filter Unquoted expression AND-ed onto the POPULATION filter applied to ADSL
+#'   (subject-level; e.g. `COMP24FL == "Y"` for a completers population)
 #' @param anl01 Apply the ANL01FL == "Y" filter
 #' @param derive_chg Compute CHG = AVAL - BASE when the dataset lacks it
 #' @param blocks Optional descriptive-block spec: list of list(var=, label=, visit=)
@@ -82,10 +85,11 @@ ancova_block <- function(dat, week, use_base) {
 #' @return The assembled table data frame (invisibly); writes the .docx as a side effect
 build_efficacy_table <- function(table, source_path, dataset, paramcd, week,
                                  endpoint = c("ADAS", "CIBIC"), sex = NULL,
-                                 extra_filter = NULL, anl01 = TRUE,
+                                 extra_filter = NULL, pop_filter = NULL, anl01 = TRUE,
                                  derive_chg = FALSE, blocks = NULL, use_base = NULL) {
   endpoint <- match.arg(endpoint)
   ef <- rlang::enquo(extra_filter)
+  pf <- rlang::enquo(pop_filter)
   dat <- read_adam(dataset) |> filter(EFFFL == "Y", ITTFL == "Y", PARAMCD == paramcd)
   if (anl01)                       dat <- dat |> filter(ANL01FL == "Y")
   if (!rlang::quo_is_null(ef))     dat <- dat |> filter(!!ef)
@@ -93,11 +97,14 @@ build_efficacy_table <- function(table, source_path, dataset, paramcd, week,
   if (derive_chg)                  dat <- dat |> mutate(CHG = AVAL - BASE)
   dat <- dat |> mutate(TRTP = factor(TRTP, levels = c("Placebo", "Xanomeline Low Dose",
                                                       "Xanomeline High Dose")))
-  # Population for the header (N=): the subjects left in the analysis set after the
-  # filters applied above. It has to be derived from `dat` rather than ADSL because the
-  # set is filter-dependent -- `sex` (14-3.08/.09) and `extra_filter` (14-3.07 completers)
-  # both narrow it, and the latter keys off analysis-data variables ADSL does not carry.
-  popd <- dat |> distinct(USUBJID, TRTP)
+  # Population for the header (N=). pop_data carries its OWN `where`, applied to ADSL
+  # independently of the analysis-data subset above, so the population is stated against
+  # the population dataset rather than back-derived from the filtered analysis records.
+  # Subject-level narrowing goes here: `sex` (14-3.08/.09) and `pop_filter` (14-3.07's
+  # completers). Record-level selection like DTYPE != "LOCF" stays on the analysis data.
+  pop_where <- rlang::expr(EFFFL == "Y" & ITTFL == "Y")
+  if (!is.null(sex))            pop_where <- rlang::expr(!!pop_where & SEX == !!sex)
+  if (!rlang::quo_is_null(pf))  pop_where <- rlang::expr(!!pop_where & !!rlang::quo_get_expr(pf))
 
   wk_lab <- paste("Week", week)
   # rlang::inject substitutes the visit value into the layer `where` before tplyr2
@@ -117,10 +124,11 @@ build_efficacy_table <- function(table, source_path, dataset, paramcd, week,
       list(list(var = "AVAL", label = wk_lab, visit = week))
   }
   if (is.null(use_base)) use_base <- (endpoint == "ADAS")
-  b <- tplyr_build(tplyr_spec(cols = "TRTP",
-                              pop_data = pop_data(cols = "TRTP"),
-                              layers = do.call(tplyr_layers, lapply(blocks, mk_desc))),
-                   dat, pop_data = popd)
+  b <- rlang::inject(tplyr_build(
+    tplyr_spec(cols = "TRTP",
+               pop_data = pop_data(cols = c("TRTP" = "TRT01P"), where = !!pop_where),
+               layers = do.call(tplyr_layers, lapply(blocks, mk_desc))),
+    dat, pop_data = read_adam("adsl")))
   hnf <- tplyr_header_n(b)                       # the spec's own population, per arm
   hn  <- setNames(hnf$.n, as.character(hnf$TRTP))
   desc <- b |> as_display() |> collapse_row_labels()
