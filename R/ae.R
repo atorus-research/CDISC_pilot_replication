@@ -38,6 +38,10 @@ build_ae_table <- function(table, source_path, serious = FALSE) {
         limit_data_by = c("AEBODSYS", "AEDECOD"),
         total_row = TRUE, total_row_label = "ANY BODY SYSTEM",
         zero_count_display = "count_only",
+        # Preferred terms by descending subject count within each SOC, taken from the
+        # High Dose column; the SOC level keeps its own (alphabetical) order.
+        order_count_method = "bycount", result_order_var = "distinct_n",
+        ordering_cols = "Xanomeline High Dose",
         # Pairwise Fisher's exact p (Placebo vs each active arm) on every SOC/PT/total row;
         # ae_p supplies the "* / >.99 / blank" display verbatim (character return).
         assoc_test = assoc_test(
@@ -54,6 +58,10 @@ build_ae_table <- function(table, source_path, serious = FALSE) {
   bd <- as_display(b)   # display-ready frame: rowlabel*/res1..res6, row order preserved (ord/row_id dropped)
 
   #' Parse the leading integer count out of an "n (xx.x%)" cell
+  #'
+  #' Only used to blank the `[AEs]` event column where an arm has no subjects; the row
+  #' ordering is the layer's own (`order_count_method = "bycount"`), not derived from
+  #' these parsed values.
   #' @param s Character vector of formatted count cells
   #' @return Integer vector of leading counts (NA when absent)
   lead_int <- function(s) suppressWarnings(as.integer(sub("^\\s*([0-9]+).*$", "\\1", s)))
@@ -65,8 +73,11 @@ build_ae_table <- function(table, source_path, serious = FALSE) {
     p_low = as.character(bd$pval1), p_high = as.character(bd$pval2)   # pairwise Fisher via assoc_test
   ) |>
     mutate(n0 = lead_int(npct_0), n54 = lead_int(npct_54), n81 = lead_int(npct_81)) |>
-    mutate(soc_rank = if_else(depth == 0, 0L, 1L), soc_key = if_else(depth == 0, "", soc)) |>
-    arrange(soc_rank, soc_key, depth, desc(n81), pt) |>
+    # The layer already orders SOCs alphabetically and preferred terms by descending
+    # High-Dose count; only the grand-total row has to move to the front of the table.
+    mutate(soc_rank = if_else(depth == 0, 0L, 1L)) |>
+    arrange(soc_rank) |>            # stable, so the layer's own ordering survives
+
     mutate(
       AETERM = if_else(depth == 2, paste0("  ", pt), soc),
       c_ae_0  = if_else(n0  > 0, e_0,  ""),
