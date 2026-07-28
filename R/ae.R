@@ -28,7 +28,8 @@ build_ae_table <- function(table, source_path, serious = FALSE) {
 
   spec <- tplyr_spec(
     cols = "TRTA",
-    pop_data = pop_data(cols = c("TRTA" = "TRT01A")),
+    # Safety population, stated in the spec rather than assumed from raw ADSL.
+    pop_data = pop_data(cols = c("TRTA" = "TRT01A"), where = SAFFL == "Y"),
     layers = tplyr_layers(group_count(c("AEBODSYS", "AEDECOD"),
       settings = layer_settings(
         distinct_by = "USUBJID",

@@ -24,7 +24,7 @@ adslp <- adsl |> mutate(ARM = factor(ARM, ARMS))
 # f_str("xxx (x%)", ...) => width-3 n and an unpadded single-char percent, e.g. "  8 (9%)".
 # total_row rolls the distinct-subject grand total into the TOPLBL "at least one" row.
 b <- tplyr_build(tplyr_spec(cols = "ARM",
-       pop_data = pop_data(cols = c("ARM" = "ARM")),
+       pop_data = pop_data(cols = "ARM"),
        layers = tplyr_layers(group_count(c("CMCLAS", "CMDECOD"),
          settings = layer_settings(
            distinct_by = "USUBJID",

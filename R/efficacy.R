@@ -93,7 +93,11 @@ build_efficacy_table <- function(table, source_path, dataset, paramcd, week,
   if (derive_chg)                  dat <- dat |> mutate(CHG = AVAL - BASE)
   dat <- dat |> mutate(TRTP = factor(TRTP, levels = c("Placebo", "Xanomeline Low Dose",
                                                       "Xanomeline High Dose")))
-  hn <- dat |> distinct(USUBJID, TRTP) |> count(TRTP) |> deframe()
+  # Population for the header (N=): the subjects left in the analysis set after the
+  # filters applied above. It has to be derived from `dat` rather than ADSL because the
+  # set is filter-dependent -- `sex` (14-3.08/.09) and `extra_filter` (14-3.07 completers)
+  # both narrow it, and the latter keys off analysis-data variables ADSL does not carry.
+  popd <- dat |> distinct(USUBJID, TRTP)
 
   wk_lab <- paste("Week", week)
   # rlang::inject substitutes the visit value into the layer `where` before tplyr2
@@ -113,10 +117,13 @@ build_efficacy_table <- function(table, source_path, dataset, paramcd, week,
       list(list(var = "AVAL", label = wk_lab, visit = week))
   }
   if (is.null(use_base)) use_base <- (endpoint == "ADAS")
-  desc <- tplyr_build(tplyr_spec(cols = "TRTP",
-                                 layers = do.call(tplyr_layers, lapply(blocks, mk_desc))), dat) |>
-    as_display() |>
-    collapse_row_labels()
+  b <- tplyr_build(tplyr_spec(cols = "TRTP",
+                              pop_data = pop_data(cols = "TRTP"),
+                              layers = do.call(tplyr_layers, lapply(blocks, mk_desc))),
+                   dat, pop_data = popd)
+  hnf <- tplyr_header_n(b)                       # the spec's own population, per arm
+  hn  <- setNames(hnf$.n, as.character(hnf$TRTP))
+  desc <- b |> as_display() |> collapse_row_labels()
 
   final <- top_spacer(bind_rows(desc, ancova_block(dat, week, use_base)))
 

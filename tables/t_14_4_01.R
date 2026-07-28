@@ -34,9 +34,12 @@ fs <- list(
 #' @param label Label placed on the block's first row.
 #' @return A padded tibble with row labels and six result columns.
 dblock <- function(var, label) {
+  # adsl_ is subject-level, so it is both the analysis data and the population; declaring
+  # it as pop_data is what makes the arm Ns below the spec's own rather than a side count.
   b <- tplyr_build(tplyr_spec(cols = "TRTPCD",
+         pop_data = pop_data(cols = "TRTPCD"),
          layers = tplyr_layers(group_desc(var,
-           settings = layer_settings(format_strings = fs)))), adsl_)
+           settings = layer_settings(format_strings = fs)))), adsl_, pop_data = adsl_)
   d <- as_display(b)                           # display-ready + ordered; drops ord*/row_id cols
   rc <- grep("^res", names(d), value = TRUE)   # six result cols, in GRP factor order
   out <- tibble(rowlbl1 = "", rowlbl2 = as.character(d$rowlabel1))

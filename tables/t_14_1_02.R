@@ -41,7 +41,8 @@ adsl <- adsl |>
 count_block <- function(data, var, assoc = NULL) {
   s <- tplyr_spec(cols = "TRT01P",
                   total_groups = list(total_group("TRT01P")),
-                  pop_data = pop_data(cols = c("TRT01P" = "TRT01P")),
+                  # Intent-to-treat population, stated in the spec.
+                  pop_data = pop_data(cols = "TRT01P", where = ITTFL == "Y"),
                   layers = tplyr_layers(group_count(var,
                     settings = layer_settings(
                       format_strings = list(n_counts = f_str("xxx (xxx%)", "n", "pct")),
