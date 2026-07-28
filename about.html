@@ -72,7 +72,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="site_libs/quarto-search/fuse.min.js"></script>
 <script src="site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="./">
-<link href="./outputs.html" rel="next">
+<link href="./divergences.html" rel="next">
 <link href="./index.html" rel="prev">
 <script src="site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
@@ -146,6 +146,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span class="menu-text">Code Reference</span></a>
   </li>  
   <li class="nav-item">
+    <a class="nav-link" href="./divergences.html"> 
+<span class="menu-text">Divergences</span></a>
+  </li>  
+  <li class="nav-item">
     <a class="nav-link" href="./about.html"> 
 <span class="menu-text">About</span></a>
   </li>  
@@ -197,6 +201,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container"> 
   <a href="./about.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">About</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./divergences.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Documented Divergences</span></a>
   </div>
 </li>
         <li class="sidebar-item sidebar-item-section">
@@ -733,7 +743,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><strong>mmrm</strong> provides the mixed-model repeated-measures analysis (replacing an older random-slope <code>lme4</code> fit); <strong>coin</strong> provides the Cochran–Mantel–Haenszel tests.</li>
 <li><strong>renv</strong> pins the whole environment for reproducibility.</li>
 </ul>
-<p>Model-based results were validated to the digit against the reference SAS output where it was available (the MMRM and CMH tables in particular). Where a modern method legitimately produces a different number than the 2020 output, the difference is <strong>documented as a deliberate divergence</strong> rather than reproduced — the aim was correct modern values, not a bug-for-bug clone.</p>
+<p>Model-based results were validated to the digit against the reference SAS output where it was available (the MMRM and CMH tables in particular). Where a modern method legitimately produces a different number than the 2020 output, the difference is <strong>documented as a <a href="./divergences.html">deliberate divergence</a></strong> rather than reproduced — the aim was correct modern values, not a bug-for-bug clone.</p>
 <section id="verifying-fidelity" class="level3">
 <h3 class="anchored" data-anchor-id="verifying-fidelity">Verifying fidelity</h3>
 <p>Every rebuilt DOCX is checked against the original RTF by a fidelity harness that renders both to PDF through the same LibreOffice engine and then compares them:</p>
@@ -1170,8 +1180,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="./outputs.html" class="pagination-link" aria-label="Outputs">
-        <span class="nav-page-text">Outputs</span> <i class="bi bi-arrow-right-short"></i>
+      <a href="./divergences.html" class="pagination-link" aria-label="Documented Divergences">
+        <span class="nav-page-text">Documented Divergences</span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>
