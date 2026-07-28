@@ -715,7 +715,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="fu">build_efficacy_table</span>(<span class="st">"14-3.07"</span>, <span class="st">"programs/t-14-3-07.R"</span>, <span class="st">"adadas"</span>, <span class="st">"ACTOT"</span>, <span class="dv">24</span>,</span>
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>                     <span class="at">endpoint =</span> <span class="st">"ADAS"</span>,</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>                     <span class="at">extra_filter =</span> COMP24FL <span class="sc">==</span> <span class="st">"Y"</span> <span class="sc">&amp;</span> DTYPE <span class="sc">!=</span> <span class="st">"LOCF"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>                     <span class="co"># completers: a subject-level population criterion, so it also scopes</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>                     <span class="co"># the header N via the population spec; DTYPE selects records only.</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>                     <span class="at">extra_filter =</span> COMP24FL <span class="sc">==</span> <span class="st">"Y"</span> <span class="sc">&amp;</span> DTYPE <span class="sc">!=</span> <span class="st">"LOCF"</span>,</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>                     <span class="at">pop_filter =</span> COMP24FL <span class="sc">==</span> <span class="st">"Y"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 
 
 
