@@ -28,5 +28,5 @@ open-source R reporting stack and rendered as Word (`.docx`) documents that are
 ::: {.callout-note}
 Every output is verified against the original RTF with a pixel-diff / content-diff fidelity
 harness. Where a value differs by design (e.g. modern MMRM vs. the legacy random-slope fit),
-the divergence is documented rather than cloned.
+the divergence is [documented](divergences.qmd) rather than cloned.
 :::

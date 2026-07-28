@@ -17,3 +17,4 @@ docs/.quarto/
 docs/outputs/
 docs/code/*.qmd
 !docs/code/index.qmd
+docs/divergences.qmd

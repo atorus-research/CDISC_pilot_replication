@@ -79,10 +79,72 @@ def parse_table_header(path):
     }
 
 
-def write_output_page(meta):
+DIVERGENCES_MD = os.path.join(ROOT, "notes", "divergences.md")
+TABLE_ID_RE = re.compile(r"\b(1[0-9]-\d+\.\d+)\b")
+
+
+def build_divergences():
+    """Render notes/divergences.md as a site page; return {table id: (anchor, title)}.
+
+    `notes/divergences.md` is the single source of truth — it is transcribed here rather
+    than duplicated, with an explicit anchor added to every heading that names a table so
+    the per-output pages can link straight to the relevant entry.
+    """
+    if not os.path.exists(DIVERGENCES_MD):
+        return {}
+    with open(DIVERGENCES_MD) as fh:
+        lines = fh.read().splitlines()
+
+    index, out = {}, []
+    for line in lines:
+        m = re.match(r"^(#{2,3})\s+(.*)$", line)
+        if m:
+            level, title = m.groups()
+            ids = TABLE_ID_RE.findall(title)
+            if ids:
+                anchor = "div-" + ids[0].replace(".", "-")
+                # first heading wins if a table is named twice
+                for tid in ids:
+                    index.setdefault(tid, (anchor, title.strip()))
+                if f"{{#" not in line:
+                    line = f"{level} {title.strip()} {{#{anchor}}}"
+        out.append(line)
+
+    body = "\n".join(out)
+    # The file's own H1, if any, would duplicate the page title.
+    body = re.sub(r"\A#\s+[^\n]*\n", "", body)
+    with open(os.path.join(DOCS, "divergences.qmd"), "w") as fh:
+        fh.write(
+            "---\n"
+            'title: "Documented Divergences"\n'
+            'description: "Every place the rebuilt output deliberately differs from the '
+            "2020 reference RTFs, and why.\"\n"
+            "---\n\n"
+            "Each entry below records a difference between this rebuild and the original\n"
+            "reference RTFs that is **deliberate** — a corrected value, a modern method, or a\n"
+            "consciously dropped cosmetic quirk — together with the evidence behind it.\n"
+            "Anything not listed here is expected to match the reference.\n\n"
+            "::: {.callout-note}\n"
+            "This page is generated from `notes/divergences.md` in the repository, which is\n"
+            "the source of truth.\n"
+            ":::\n\n" + body + "\n"
+        )
+    return index
+
+
+def write_output_page(meta, divergences=None):
     """Write docs/outputs/<id>.qmd with an embedded PDF viewer + downloads."""
     tid = meta["id"]
     slug_r = "t_" + tid.replace("-", "_").replace(".", "_") + ".R"
+    note = ""
+    entry = (divergences or {}).get(tid)
+    if entry:
+        anchor, title = entry
+        note = (f"\n::: {{.callout-important}}\n"
+                f"## Documented divergence\n"
+                f"This table differs from the 2020 reference RTF by design — "
+                f"[{html_escape(title)}](../divergences.html#{anchor}).\n"
+                f":::\n")
     body = f"""---
 title: "{tid} — {yaml_escape(meta['title'])}"
 description: "{yaml_escape(meta['title'])} (Population: {meta['pop']})"
@@ -92,7 +154,7 @@ categories: ["{meta['pop']}"]
 **Population:** {meta['pop']}
 
 {meta['method']}
-
+{note}
 ::: {{.pdf-viewer}}
 <iframe src="../pdf/{tid}.pdf" title="{tid} — {html_escape(meta['title'])}"></iframe>
 :::
@@ -143,10 +205,11 @@ def main():
     os.makedirs(os.path.join(DOCS, "outputs"), exist_ok=True)
     os.makedirs(os.path.join(DOCS, "code"), exist_ok=True)
 
+    divergences = build_divergences()
     table_files = sorted(glob.glob(os.path.join(ROOT, "tables", "t_*.R")))
     metas = [parse_table_header(p) for p in table_files]
     for meta in metas:
-        write_output_page(meta)
+        write_output_page(meta, divergences)
 
     # Shared R files: setup/config + builders.
     for fname in SETUP_CONFIG:
@@ -160,8 +223,10 @@ def main():
         desc = f"Table {meta['id']}: {meta['title']} (Population: {meta['pop']})"
         write_code_page(p, desc, "Table Programs", f"tables/{os.path.basename(p)}")
 
-    print(f"generated {len(metas)} output pages and "
-          f"{len(SETUP_CONFIG) + len(BUILDERS) + len(metas)} code pages")
+    print(f"generated {len(metas)} output pages "
+          f"({sum(1 for m in metas if m['id'] in divergences)} with a divergence note), "
+          f"{len(SETUP_CONFIG) + len(BUILDERS) + len(metas)} code pages, "
+          f"and the divergences page ({len(divergences)} tables indexed)")
 
 
 if __name__ == "__main__":
