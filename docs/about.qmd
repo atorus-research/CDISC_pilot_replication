@@ -40,8 +40,8 @@ holding the outputs visually identical to the original RTFs:
 Model-based results were validated to the digit against the reference SAS output where it
 was available (the MMRM and CMH tables in particular). Where a modern method legitimately
 produces a different number than the 2020 output, the difference is **documented as a
-deliberate divergence** rather than reproduced — the aim was correct modern values, not a
-bug-for-bug clone.
+[deliberate divergence](divergences.qmd)** rather than reproduced — the aim was correct
+modern values, not a bug-for-bug clone.
 
 ### Verifying fidelity
 
